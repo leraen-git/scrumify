@@ -1,0 +1,538 @@
+import { SprintDatePicker } from "@/components/sprint-date-picker";
+import { SprintStatusSelect } from "@/components/sprint-status-select";
+import { StoriesImporter } from "@/components/stories-importer";
+import { StoryCategorySelect } from "@/components/story-category-select";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { apiFetch } from "@/lib/api";
+import { countWorkingDays, formatDate, formatDateTime } from "@/lib/utils";
+import { ArrowLeft, CheckCircle2, Circle, Clock, Download, Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+async function updateSprint(sprintId: string, teamId: string, formData: FormData) {
+  "use server";
+  const { apiFetch: api } = await import("@/lib/api");
+  const { revalidatePath } = await import("next/cache");
+  const { redirect: redir } = await import("next/navigation");
+  const name = formData.get("name") as string;
+  const startDate = formData.get("startDate") as string;
+  const endDate = formData.get("endDate") as string;
+  await api(`/api/teams/${teamId}/sprints/${sprintId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ name: name.trim(), startDate, endDate }),
+  });
+  revalidatePath(`/teams/${teamId}`, "layout");
+  redir(`/teams/${teamId}/sprints/${sprintId}`);
+}
+
+async function updateSprintStatus(sprintId: string, teamId: string, formData: FormData) {
+  "use server";
+  const { apiFetch: api } = await import("@/lib/api");
+  const { revalidatePath } = await import("next/cache");
+  const status = formData.get("status") as string;
+  await api(`/api/teams/${teamId}/sprints/${sprintId}`, { method: "PATCH", body: JSON.stringify({ status }) });
+  revalidatePath(`/teams/${teamId}`, "layout");
+}
+
+async function addStory(sprintId: string, teamId: string, formData: FormData) {
+  "use server";
+  const { apiFetch: api } = await import("@/lib/api");
+  const { revalidatePath } = await import("next/cache");
+  const title = formData.get("title") as string;
+  const storyPoints = parseInt(formData.get("storyPoints") as string, 10);
+  const assigneeId = (formData.get("assigneeId") as string) || null;
+  const category = (formData.get("category") as string) || "user_story";
+  if (!title?.trim()) return;
+  await api(`/api/teams/${teamId}/sprints/${sprintId}/stories`, {
+    method: "POST",
+    body: JSON.stringify({ title: title.trim(), storyPoints, assigneeId, category }),
+  });
+  revalidatePath(`/teams/${teamId}/sprints/${sprintId}`);
+}
+
+async function updateStory(storyId: string, sprintId: string, teamId: string, formData: FormData) {
+  "use server";
+  const { apiFetch: api } = await import("@/lib/api");
+  const { revalidatePath } = await import("next/cache");
+  const { redirect: redir } = await import("next/navigation");
+  const title = formData.get("title") as string;
+  const storyPoints = parseInt(formData.get("storyPoints") as string, 10);
+  const assigneeId = (formData.get("assigneeId") as string) || null;
+  await api(`/api/teams/${teamId}/sprints/${sprintId}/stories/${storyId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ title: title.trim(), storyPoints, assigneeId }),
+  });
+  revalidatePath(`/teams/${teamId}/sprints/${sprintId}`);
+  redir(`/teams/${teamId}/sprints/${sprintId}`);
+}
+
+async function updateStoryStatus(storyId: string, sprintId: string, teamId: string, formData: FormData) {
+  "use server";
+  const { apiFetch: api } = await import("@/lib/api");
+  const { revalidatePath } = await import("next/cache");
+  const status = formData.get("status") as string;
+  await api(`/api/teams/${teamId}/sprints/${sprintId}/stories/${storyId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+  revalidatePath(`/teams/${teamId}/sprints/${sprintId}`);
+}
+
+async function removeStory(storyId: string, sprintId: string, teamId: string) {
+  "use server";
+  const { apiFetch: api } = await import("@/lib/api");
+  const { revalidatePath } = await import("next/cache");
+  await api(`/api/teams/${teamId}/sprints/${sprintId}/stories/${storyId}`, { method: "DELETE" });
+  revalidatePath(`/teams/${teamId}/sprints/${sprintId}`);
+}
+
+async function updateStoryCategory(storyId: string, sprintId: string, teamId: string, formData: FormData) {
+  "use server";
+  const { apiFetch: api } = await import("@/lib/api");
+  const { revalidatePath } = await import("next/cache");
+  const category = formData.get("category") as string;
+  await api(`/api/teams/${teamId}/sprints/${sprintId}/stories/${storyId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ category }),
+  });
+  revalidatePath(`/teams/${teamId}/sprints/${sprintId}`);
+}
+
+const storyStatusConfig = {
+  todo: { label: "To Do", icon: Circle, next: "in_progress" },
+  in_progress: { label: "In Progress", icon: Clock, next: "done" },
+  done: { label: "Done", icon: CheckCircle2, next: "todo" },
+};
+
+const sprintStatusOptions = ["planned", "active", "completed"];
+const FIBONACCI_SP = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
+
+const CATEGORY_LABELS: Record<string, string> = {
+  user_story:  "User Story",
+  bug:         "Bug",
+  mco:         "MCO",
+  best_effort: "Best-effort",
+  tech_lead:   "Tech Lead",
+};
+
+export default async function SprintPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ teamId: string; sprintId: string }>;
+  searchParams: Promise<{ editSprint?: string; editStory?: string }>;
+}) {
+  const { teamId, sprintId } = await params;
+  const { editSprint, editStory } = await searchParams;
+
+  interface SprintDetails {
+    id: string;
+    name: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+    capacity: number;
+    plannedPoints: number;
+    teamId: string;
+    team: { id: string; name: string; sprintDuration: number; developers: { id: string; name: string }[]; categoryAllocations: Record<string, number> };
+    userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; createdAt: string }[];
+  }
+
+  const sprint = await apiFetch<SprintDetails>(`/api/teams/${teamId}/sprints/${sprintId}`).catch(() => null);
+  if (!sprint) notFound();
+
+  const donePoints = sprint.userStories
+    .filter((s) => s.status === "done")
+    .reduce((a, s) => a + s.storyPoints, 0);
+  const totalPoints = sprint.userStories.reduce((a, s) => a + s.storyPoints, 0);
+  const progress = sprint.capacity > 0 ? Math.round((donePoints / sprint.capacity) * 100) : 0;
+
+  const updateSprintAction = updateSprint.bind(null, sprintId, teamId);
+  const updateStatusAction = updateSprintStatus.bind(null, sprintId, teamId);
+  const addStoryAction = addStory.bind(null, sprintId, teamId);
+
+  const groupedStories = {
+    todo: sprint.userStories.filter((s) => s.status === "todo"),
+    in_progress: sprint.userStories.filter((s) => s.status === "in_progress"),
+    done: sprint.userStories.filter((s) => s.status === "done"),
+  };
+
+  const boardUrl = `/teams/${teamId}/sprints/${sprintId}`;
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <Link
+          href={`/teams/${teamId}`}
+          className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to {sprint.team.name}
+        </Link>
+
+        {editSprint ? (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-xs p-5 mt-2">
+            <h2 className="text-sm font-semibold text-gray-700 mb-4">Edit Sprint</h2>
+            <form action={updateSprintAction} className="space-y-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="name">Sprint Name</Label>
+                <Input id="name" name="name" defaultValue={sprint.name} required autoFocus />
+              </div>
+              <SprintDatePicker
+                sprintDuration={sprint.team.sprintDuration}
+                defaultStartISO={sprint.startDate}
+                defaultEndISO={sprint.endDate}
+              />
+              <div className="flex gap-2 pt-1">
+                <Button type="submit">Save</Button>
+                <Link href={boardUrl}>
+                  <Button type="button" variant="outline">Cancel</Button>
+                </Link>
+              </div>
+            </form>
+          </div>
+        ) : (
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-gray-900">{sprint.name}</h1>
+                <Link
+                  href={`${boardUrl}?editSprint=1`}
+                  className="text-gray-300 hover:text-gray-500 transition-colors"
+                  title="Edit sprint"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Link>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
+              </p>
+            </div>
+            <SprintStatusSelect
+              currentStatus={sprint.status}
+              options={sprintStatusOptions}
+              action={updateStatusAction}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <div className="text-2xl font-bold text-indigo-600">{sprint.capacity}</div>
+            <div className="text-xs text-gray-500 mt-1">SP Capacity</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <div className="text-2xl font-bold text-gray-900">{sprint.plannedPoints > 0 ? sprint.plannedPoints : totalPoints}</div>
+            <div className="text-xs text-gray-500 mt-1">SP Planned</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <div className="text-2xl font-bold text-indigo-500">{totalPoints}</div>
+            <div className="text-xs text-gray-500 mt-1">SP Current</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <div className="text-2xl font-bold text-green-600">{donePoints}</div>
+            <div className="text-xs text-gray-500 mt-1">SP Done</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-4">
+            <div className="text-2xl font-bold text-gray-900">{progress}%</div>
+            <div className="text-xs text-gray-500 mt-1">Complete</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Progress bars */}
+      {(() => {
+        const today = new Date().toISOString().slice(0, 10);
+        const totalDays = countWorkingDays(sprint.startDate, sprint.endDate);
+        const elapsedDays = sprint.startDate <= today
+          ? countWorkingDays(sprint.startDate, today < sprint.endDate ? today : sprint.endDate)
+          : 0;
+        const remainingDays = Math.max(0, totalDays - elapsedDays);
+        const timeProgress = totalDays > 0 ? Math.round((elapsedDays / totalDays) * 100) : 0;
+        return (
+          <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+            <div>
+              <div className="flex justify-between text-sm text-gray-600 mb-1.5">
+                <span>Story points</span>
+                <span>{donePoints} / {sprint.capacity} SP</span>
+              </div>
+              <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${progress >= 80 ? "bg-green-400" : progress >= 50 ? "bg-amber-400" : "bg-red-400"}`}
+                  style={{ width: `${Math.min(progress, 100)}%` }}
+                />
+              </div>
+            </div>
+            <div>
+              <div className="flex justify-between text-sm text-gray-600 mb-1.5">
+                <span>Time elapsed</span>
+                <span>{remainingDays} working day{remainingDays !== 1 ? "s" : ""} left</span>
+              </div>
+              <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${timeProgress >= 80 ? "bg-red-400" : timeProgress >= 50 ? "bg-amber-400" : "bg-green-400"}`}
+                  style={{ width: `${Math.min(timeProgress, 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Category breakdown */}
+      {(() => {
+        const CATEGORIES = [
+          { key: "user_story", label: "User Story", color: "#6366f1" },
+          { key: "bug",        label: "Bug",         color: "#ef4444" },
+          { key: "mco",        label: "MCO",         color: "#f59e0b" },
+          { key: "best_effort",label: "Best-effort", color: "#22c55e" },
+          { key: "tech_lead",  label: "Tech Lead",   color: "#a855f7" },
+        ];
+        const rows = CATEGORIES.map((c) => {
+          const stories = sprint.userStories.filter((s) => s.category === c.key);
+          const sp = stories.reduce((a, s) => a + s.storyPoints, 0);
+          const spDone = stories.filter((s) => s.status === "done").reduce((a, s) => a + s.storyPoints, 0);
+          return { ...c, sp, spDone, count: stories.length };
+        }).filter((c) => c.sp > 0);
+        if (rows.length === 0) return null;
+        return (
+          <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
+            <p className="text-sm font-medium text-gray-700 mb-3">Category Breakdown</p>
+            <div className="space-y-2">
+              {rows.map((c) => (
+                <div key={c.key} className="flex items-center gap-3 text-sm">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                  <span className="w-28 font-medium text-gray-700">{c.label}</span>
+                  <span className="text-xs text-gray-400">{c.count} stor{c.count !== 1 ? "ies" : "y"}</span>
+                  <span className="ml-auto font-semibold text-indigo-600">{c.spDone} / {c.sp} SP</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Kanban columns */}
+      <div className="grid lg:grid-cols-3 gap-4 mb-6">
+        {(["todo", "in_progress", "done"] as const).map((status) => {
+          const cfg = storyStatusConfig[status];
+          const stories = groupedStories[status];
+          const Icon = cfg.icon;
+          return (
+            <div key={status} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Icon
+                  className={`h-4 w-4 ${
+                    status === "done"
+                      ? "text-green-500"
+                      : status === "in_progress"
+                      ? "text-amber-500"
+                      : "text-gray-400"
+                  }`}
+                />
+                <span className="text-sm font-medium text-gray-700">{cfg.label}</span>
+                <span className="ml-auto text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
+                  {stories.reduce((a, s) => a + s.storyPoints, 0)} SP
+                </span>
+              </div>
+              <div className="space-y-2">
+                {stories.map((story) => {
+                  const updateStatusAction = updateStoryStatus.bind(null, story.id, sprintId, teamId);
+                  const removeStoryAction = removeStory.bind(null, story.id, sprintId, teamId);
+                  const updateStoryAction = updateStory.bind(null, story.id, sprintId, teamId);
+                  const updateCategoryAction = updateStoryCategory.bind(null, story.id, sprintId, teamId);
+                  const assignee = sprint.team.developers.find((d) => d.id === story.assigneeId);
+
+                  const spHistory = JSON.parse(story.spChanges ?? "[]") as { from: number; to: number; at: string }[];
+
+                  if (editStory === story.id) {
+                    return (
+                      <div key={story.id} className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+                        <form action={updateStoryAction} className="space-y-2">
+                          <Input
+                            name="title"
+                            defaultValue={story.title}
+                            required
+                            autoFocus
+                            className="text-sm h-8"
+                          />
+                          <div className="flex gap-2 flex-wrap">
+                            <select
+                              name="storyPoints"
+                              defaultValue={story.storyPoints}
+                              className="w-20 h-8 rounded-md border border-gray-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                              {(FIBONACCI_SP.includes(story.storyPoints)
+                                ? FIBONACCI_SP
+                                : [...FIBONACCI_SP, story.storyPoints].sort((a, b) => a - b)
+                              ).map((v) => (
+                                <option key={v} value={v}>{v}</option>
+                              ))}
+                            </select>
+                            <select
+                              name="category"
+                              defaultValue={story.category || "user_story"}
+                              className="h-8 rounded-md border border-gray-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                              {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+                                <option key={key} value={key}>{label}</option>
+                              ))}
+                            </select>
+                            <select
+                              name="assigneeId"
+                              defaultValue={story.assigneeId ?? ""}
+                              className="flex-1 h-8 rounded-md border border-gray-300 bg-white px-2 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            >
+                              <option value="">Unassigned</option>
+                              {sprint.team.developers.map((dev) => (
+                                <option key={dev.id} value={dev.id}>{dev.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="flex gap-1.5">
+                            <Button type="submit" size="sm" className="h-7 text-xs">Save</Button>
+                            <Link href={boardUrl} scroll={false}>
+                              <Button type="button" variant="outline" size="sm" className="h-7 text-xs">Cancel</Button>
+                            </Link>
+                          </div>
+                        </form>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={story.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-100 bg-gray-50">
+                      {/* ID */}
+                      <span className="text-[10px] font-mono text-gray-300 shrink-0">#{story.id.slice(0, 8)}</span>
+
+                      {/* Title + edited */}
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-gray-800 truncate block leading-tight">{story.title}</span>
+                      </div>
+
+                      {/* Category */}
+                      <StoryCategorySelect action={updateCategoryAction} defaultValue={story.category || "user_story"} />
+
+                      {/* Assignee */}
+                      {assignee && (
+                        <span className="text-xs text-gray-400 shrink-0 hidden sm:block">{assignee.name}</span>
+                      )}
+
+                      {/* SP — red with history tooltip if SP was ever changed */}
+                      <div className="relative group shrink-0">
+                        <span className={`text-xs font-semibold cursor-default ${spHistory.length > 0 ? "text-red-500" : "text-gray-500"}`}>
+                          {story.storyPoints} SP
+                        </span>
+                        {spHistory.length > 0 && (
+                          <div className="hidden group-hover:block absolute bottom-full right-0 mb-1.5 z-20 w-52 rounded-lg border border-gray-200 bg-white shadow-lg p-2.5 text-xs text-gray-700">
+                            <div className="font-semibold text-gray-800 mb-1.5">SP history</div>
+                            {spHistory.map((h, i) => (
+                              <div key={i} className="flex justify-between text-gray-600 py-0.5 border-b border-gray-100 last:border-0">
+                                <span>{h.from} → {h.to} SP</span>
+                                <span className="text-gray-400">{formatDateTime(new Date(h.at))}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Move — only for todo and in_progress */}
+                      {status !== "done" && (
+                        <form action={updateStatusAction} className="shrink-0">
+                          <input type="hidden" name="status" value={cfg.next} />
+                          <button type="submit" className="text-xs font-medium whitespace-nowrap px-2 py-1 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-colors">
+                            → {storyStatusConfig[cfg.next as keyof typeof storyStatusConfig]?.label}
+                          </button>
+                        </form>
+                      )}
+
+                      {/* Actions */}
+                      <Link
+                        href={`${boardUrl}?editStory=${story.id}`}
+                        scroll={false}
+                        className="text-gray-300 hover:text-indigo-400 transition-colors shrink-0"
+                        title="Edit story"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Link>
+                      <form action={removeStoryAction}>
+                        <button type="submit" className="text-gray-300 hover:text-red-400 transition-colors">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </form>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Import / Export */}
+      <div className="mb-4">
+        <StoriesImporter sprintId={sprintId} teamId={teamId} existingCount={sprint.userStories.length} />
+        {/* <a href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/api/teams/${teamId}/sprints/${sprintId}/export`} download>
+          <Button variant="outline" size="sm">
+              <Download className="h-4 w-4 mr-1.5" />
+            Export CSV
+          </Button>
+        </a> */}
+      </div>
+
+      {/* Add story */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-xs p-5">
+        <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+          <Plus className="h-4 w-4 text-indigo-500" />
+          Add User Story
+        </h3>
+        <form action={addStoryAction} className="flex gap-3 flex-wrap sm:flex-nowrap">
+          <Input name="title" placeholder="Story title or description" required className="flex-1 min-w-0" />
+          <select
+            name="storyPoints"
+            defaultValue={3}
+            className="h-9 w-20 flex-shrink-0 rounded-md border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {FIBONACCI_SP.map((v) => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+          <select
+            name="category"
+            defaultValue="user_story"
+            className="h-9 flex-shrink-0 rounded-md border border-gray-300 bg-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+          <select
+            name="assigneeId"
+            className="h-9 rounded-md border border-gray-300 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 flex-shrink-0"
+          >
+            <option value="">Unassigned</option>
+            {sprint.team.developers.map((dev) => (
+              <option key={dev.id} value={dev.id}>{dev.name}</option>
+            ))}
+          </select>
+          <Button type="submit" className="flex-shrink-0">Add</Button>
+        </form>
+      </div>
+    </div>
+  );
+}

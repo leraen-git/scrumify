@@ -1,41 +1,16 @@
 {
-  "name": "scrumify",
+  "name": "scrumify-monorepo",
   "version": "0.1.0",
   "private": true,
+  "workspaces": ["apps/*"],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "@prisma/adapter-better-sqlite3": "^7.5.0",
-    "@prisma/client": "^7.5.0",
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-dropdown-menu": "^2.1.16",
-    "@radix-ui/react-label": "^2.1.8",
-    "@radix-ui/react-select": "^2.2.6",
-    "@radix-ui/react-separator": "^1.1.8",
-    "@radix-ui/react-slot": "^1.2.4",
-    "@radix-ui/react-toast": "^1.2.15",
-    "better-sqlite3": "^12.8.0",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "lucide-react": "^0.577.0",
-    "next": "16.2.1",
-    "prisma": "^7.5.0",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "tailwind-merge": "^3.5.0"
+    "dev": "concurrently \"npm run start:dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run prisma:migrate -w apps/api",
+    "db:generate": "npm run prisma:generate -w apps/api"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.1",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "concurrently": "^9.1.2"
   }
 }
