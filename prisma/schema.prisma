@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Team {
+  id             String      @id @default(cuid())
+  name           String
+  sprintDuration Int         @default(2)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  developers     Developer[]
+  sprints        Sprint[]
+}
+
+model Developer {
+  id                   String             @id @default(cuid())
+  name                 String
+  storyPointsPerSprint Int                @default(10)
+  teamId               String
+  team                 Team               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  daysOff              DayOff[]
+  sprintAssignments    SprintAssignment[]
+}
+
+model DayOff {
+  id          String    @id @default(cuid())
+  date        String
+  reason      String?
+  developerId String
+  developer   Developer @relation(fields: [developerId], references: [id], onDelete: Cascade)
+}
+
+model Sprint {
+  id            String               @id @default(cuid())
+  name          String
+  startDate     String
+  endDate       String
+  status        String               @default("planned")
+  capacity      Int                  @default(0)
+  teamId        String
+  team          Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userStories   UserStory[]
+  assignments   SprintAssignment[]
+  retrospective SprintRetrospective?
+}
+
+model SprintAssignment {
+  id          String    @id @default(cuid())
+  capacity    Int
+  sprintId    String
+  sprint      Sprint    @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+  developerId String
+  developer   Developer @relation(fields: [developerId], references: [id], onDelete: Cascade)
+}
+
+model UserStory {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  storyPoints Int      @default(1)
+  status      String   @default("todo")
+  priority    Int      @default(0)
+  sprintId    String?
+  sprint      Sprint?  @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  assigneeId  String?
+  createdAt   DateTime @default(now())
+}
+
+model SprintRetrospective {
+  id          String @id @default(cuid())
+  wellDone    String @default("")
+  toImprove   String @default("")
+  actionItems String @default("")
+  sprintId    String @unique
+  sprint      Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+}
