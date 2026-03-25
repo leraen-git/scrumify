@@ -19,7 +19,7 @@ interface SprintWithStories {
 export default async function VelocityPage({ params }: { params: Promise<{ teamId: string }> }) {
   const { teamId } = await params;
 
-  const team = await apiFetch<{ id: string; developers: { id: string }[]; sprints: SprintWithStories[] }>(`/api/teams/${teamId}`).catch(() => null);
+  const team = await apiFetch<{ id: string; developers: { id: string }[]; sprints: SprintWithStories[]; categoryAllocations: Record<string, string | number> }>(`/api/teams/${teamId}`).catch(() => null);
   if (!team) notFound();
 
   const completedSprints = team.sprints
@@ -110,6 +110,11 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
                 ...(activeSprint ? [activeSprint] : []),
               ].filter((s) => s.userStories.length > 0);
               if (donutSprints.length === 0) return null;
+              const alloc = team.categoryAllocations ?? {};
+              const categoryColors = Object.fromEntries(
+                ["user_story", "bug", "mco", "best_effort", "tech_lead"].map((k) => [k, alloc[`${k}_color`] as string])
+                  .filter(([, v]) => v)
+              );
               return (
                 <CategoryDonutChart
                   sprints={donutSprints.map((s) => ({
@@ -118,6 +123,7 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
                     active: s.status === "active",
                     stories: s.userStories.map((u) => ({ category: u.category ?? "user_story", storyPoints: u.storyPoints })),
                   }))}
+                  colors={categoryColors}
                 />
               );
             })()}

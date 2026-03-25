@@ -13,9 +13,17 @@ const CATEGORIES = [
 
 type CategoryKey = (typeof CATEGORIES)[number]["key"];
 
+const DEFAULT_COLORS: Record<CategoryKey, string> = {
+  user_story: "#6366f1",
+  bug: "#ef4444",
+  mco: "#f59e0b",
+  best_effort: "#22c55e",
+  tech_lead: "#a855f7",
+};
+
 interface Props {
   teamId: string;
-  initial: Record<string, number>;
+  initial: Record<string, number | string>;
   developers: { id: string; name: string; role: string; storyPointsPerSprint: number }[];
 }
 
@@ -23,22 +31,28 @@ export function CategoryAllocationForm({ teamId, initial, developers }: Props) {
   const router = useRouter();
   const [, startTransition] = useTransition();
   const [values, setValues] = useState<Record<CategoryKey, number>>({
-    user_story: initial["user_story"] ?? 0,
-    bug: initial["bug"] ?? 0,
-    mco: initial["mco"] ?? 0,
-    best_effort: initial["best_effort"] ?? 0,
-    tech_lead: initial["tech_lead"] ?? 0,
+    user_story: (initial["user_story"] as number) ?? 0,
+    bug: (initial["bug"] as number) ?? 0,
+    mco: (initial["mco"] as number) ?? 0,
+    best_effort: (initial["best_effort"] as number) ?? 0,
+    tech_lead: (initial["tech_lead"] as number) ?? 0,
+  });
+  const [colors, setColors] = useState<Record<CategoryKey, string>>({
+    user_story: (initial["user_story_color"] as string) ?? DEFAULT_COLORS.user_story,
+    bug: (initial["bug_color"] as string) ?? DEFAULT_COLORS.bug,
+    mco: (initial["mco_color"] as string) ?? DEFAULT_COLORS.mco,
+    best_effort: (initial["best_effort_color"] as string) ?? DEFAULT_COLORS.best_effort,
+    tech_lead: (initial["tech_lead_color"] as string) ?? DEFAULT_COLORS.tech_lead,
   });
 
   const valuesRef = useRef(values);
+  const colorsRef = useRef(colors);
 
   const totalCapacity = developers.reduce((a, d) => a + d.storyPointsPerSprint, 0);
   const techLead = developers.find((d) => d.role === "tech_lead") ?? null;
 
   const othersTotal = values.bug + values.mco + values.best_effort + values.tech_lead;
   const userStory = Math.max(0, 100 - othersTotal);
-
-  const techLeadSP = totalCapacity > 0 ? Math.round(totalCapacity * values.tech_lead / 100) : 0;
 
   function set(key: Exclude<CategoryKey, "user_story">, raw: string) {
     const v = Math.min(100, Math.max(0, parseInt(raw, 10) || 0));
@@ -49,18 +63,30 @@ export function CategoryAllocationForm({ teamId, initial, developers }: Props) {
     });
   }
 
+  function setColor(key: CategoryKey, value: string) {
+    setColors((prev) => {
+      const next = { ...prev, [key]: value };
+      colorsRef.current = next;
+      return next;
+    });
+  }
+
   function handleSave() {
     const current = valuesRef.current;
+    const currentColors = colorsRef.current;
     const othersTotalCurrent = current.bug + current.mco + current.best_effort + current.tech_lead;
     if (othersTotalCurrent > 100) return;
     const userStoryCurrent = Math.max(0, 100 - othersTotalCurrent);
     const techLeadSPCurrent = totalCapacity > 0 ? Math.round(totalCapacity * current.tech_lead / 100) : 0;
+    const colorEntries = Object.fromEntries(
+      (Object.keys(currentColors) as CategoryKey[]).map((k) => [`${k}_color`, currentColors[k]])
+    );
     const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
     startTransition(async () => {
       await fetch(`${apiUrl}/api/teams/${teamId}/category-allocations`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ allocations: { ...current, user_story: userStoryCurrent } }),
+        body: JSON.stringify({ allocations: { ...current, user_story: userStoryCurrent, ...colorEntries } }),
       });
       if (techLead && techLeadSPCurrent > 0) {
         await fetch(`${apiUrl}/api/teams/${teamId}/developers/${techLead.id}`, {
@@ -80,9 +106,20 @@ export function CategoryAllocationForm({ teamId, initial, developers }: Props) {
         {CATEGORIES.map(({ key, label, sub }) => {
           const isAuto = key === "user_story";
           const displayValue = isAuto ? userStory : values[key as Exclude<CategoryKey, "user_story">];
+          const estimatedSP = totalCapacity > 0 && displayValue > 0
+            ? Math.round(totalCapacity * displayValue / 100)
+            : null;
           return (
             <div key={key} className="flex items-center gap-3">
-              <div className="w-36">
+              <input
+                type="color"
+                value={colors[key as CategoryKey]}
+                onChange={(e) => setColor(key as CategoryKey, e.target.value)}
+                onBlur={handleSave}
+                className="w-7 h-7 rounded cursor-pointer border border-gray-200 p-0.5 shrink-0"
+                title={`${label} color`}
+              />
+              <div className="w-32 shrink-0">
                 <span className="text-sm font-medium text-gray-700">{label}</span>
                 {sub && <span className="ml-1.5 text-xs text-gray-400">({sub})</span>}
               </div>
@@ -103,9 +140,9 @@ export function CategoryAllocationForm({ teamId, initial, developers }: Props) {
                 />
                 <span className="text-sm text-gray-400">%</span>
                 {isAuto && <span className="text-xs text-gray-400 italic">auto</span>}
-                {totalCapacity > 0 && displayValue > 0 && (
+                {estimatedSP !== null && (
                   <span className="text-xs text-gray-500 ml-1">
-                    → {Math.round(totalCapacity * displayValue / 100)} SP
+                    → {estimatedSP} SP
                     {key === "tech_lead" && techLead ? ` for ${techLead.name}` : ""}
                   </span>
                 )}

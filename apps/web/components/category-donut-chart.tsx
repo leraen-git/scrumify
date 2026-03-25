@@ -30,9 +30,10 @@ interface SprintOption {
 
 interface Props {
   sprints: SprintOption[];
+  colors?: Record<string, string>;
 }
 
-export function CategoryDonutChart({ sprints }: Props) {
+export function CategoryDonutChart({ sprints, colors: customColors }: Props) {
   const lastCompleted = [...sprints].reverse().find((s) => !s.active);
   const [selectedId, setSelectedId] = useState<string>((lastCompleted ?? sprints[sprints.length - 1])?.id ?? "");
 
@@ -44,7 +45,7 @@ export function CategoryDonutChart({ sprints }: Props) {
       key,
       name: LABELS[key] ?? key,
       value: sprint.stories.filter((s) => s.category === key).reduce((sum, s) => sum + s.storyPoints, 0),
-      color: COLORS[key] ?? "#94a3b8",
+      color: customColors?.[key] ?? COLORS[key] ?? "#94a3b8",
     }))
     .filter((d) => d.value > 0);
 

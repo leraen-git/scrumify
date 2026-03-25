@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Circle,
   Clock,
+  FlaskConical,
   Pencil,
   Plus,
   Trash2,
@@ -59,7 +60,8 @@ async function removeStory(storyId: string, sprintId: string, teamId: string) {
 
 const storyStatusConfig = {
   todo: { label: "To Do", icon: Circle, next: "in_progress" },
-  in_progress: { label: "In Progress", icon: Clock, next: "done" },
+  in_progress: { label: "In Progress", icon: Clock, next: "dev_done" },
+  dev_done: { label: "Dev Done / Testing", icon: FlaskConical, next: "done" },
   done: { label: "Done", icon: CheckCircle2, next: "todo" },
 };
 
@@ -82,6 +84,7 @@ export default async function TeamDashboard({
   interface TeamDashboardData {
     id: string;
     developers: { id: string; name: string; storyPointsPerSprint: number }[];
+    categoryAllocations: Record<string, string | number>;
     sprints: {
       id: string; name: string; startDate: string; endDate: string;
       status: string; capacity: number; plannedPoints: number;
@@ -176,6 +179,11 @@ export default async function TeamDashboard({
           {(() => {
             const donutSprints = chartSprints.filter((s) => s.userStories.length > 0);
             if (donutSprints.length === 0) return null;
+            const alloc = team.categoryAllocations ?? {};
+            const categoryColors = Object.fromEntries(
+              ["user_story", "bug", "mco", "best_effort", "tech_lead"].map((k) => [k, alloc[`${k}_color`] as string])
+                .filter(([, v]) => v)
+            );
             return (
               <CategoryDonutChart
                 sprints={donutSprints.map((s) => ({
@@ -184,6 +192,7 @@ export default async function TeamDashboard({
                   active: s.status === "active",
                   stories: s.userStories.map((u) => ({ category: u.category ?? "user_story", storyPoints: u.storyPoints })),
                 }))}
+                colors={categoryColors}
               />
             );
           })()}
@@ -200,6 +209,7 @@ export default async function TeamDashboard({
         const groupedStories = {
           todo: stories.filter((s) => s.status === "todo"),
           in_progress: stories.filter((s) => s.status === "in_progress"),
+          dev_done: stories.filter((s) => s.status === "dev_done"),
           done: stories.filter((s) => s.status === "done"),
         };
 
@@ -299,15 +309,15 @@ export default async function TeamDashboard({
             })()}
 
             {/* Kanban */}
-            <div className="grid lg:grid-cols-3 gap-4 mb-4">
-              {(["todo", "in_progress", "done"] as const).map((status) => {
+            <div className="flex flex-col gap-3 mb-4">
+              {(["todo", "in_progress", "dev_done", "done"] as const).map((status) => {
                 const cfg = storyStatusConfig[status];
                 const colStories = groupedStories[status];
                 const Icon = cfg.icon;
                 return (
                   <div key={status} className="bg-white rounded-xl border border-gray-200 p-4">
                     <div className="flex items-center gap-2 mb-3">
-                      <Icon className={`h-4 w-4 ${status === "done" ? "text-green-500" : status === "in_progress" ? "text-amber-500" : "text-gray-400"}`} />
+                      <Icon className={`h-4 w-4 ${status === "done" ? "text-green-500" : status === "dev_done" ? "text-purple-500" : status === "in_progress" ? "text-amber-500" : "text-gray-400"}`} />
                       <span className="text-sm font-medium text-gray-700">{cfg.label}</span>
                       <span className="ml-auto text-xs bg-gray-100 text-gray-600 rounded-full px-2 py-0.5">
                         {colStories.reduce((a, s) => a + s.storyPoints, 0)} SP

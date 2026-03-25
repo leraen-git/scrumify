@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
 import { countWorkingDays, formatDate, formatDateTime } from "@/lib/utils";
-import { ArrowLeft, CheckCircle2, Circle, Clock, Download, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Circle, Clock, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -103,9 +103,32 @@ async function updateStoryCategory(storyId: string, sprintId: string, teamId: st
 
 const storyStatusConfig = {
   todo: { label: "To Do", icon: Circle, next: "in_progress" },
-  in_progress: { label: "In Progress", icon: Clock, next: "done" },
+  in_progress: { label: "In Progress", icon: Clock, next: "dev_done" },
+  dev_done: { label: "Dev Done / Testing", icon: FlaskConical, next: "done" },
   done: { label: "Done", icon: CheckCircle2, next: "todo" },
 };
+
+function formatDuration(ms: number): string {
+  const h = Math.round(ms / 3600000);
+  if (h < 24) return `${h}h`;
+  const d = Math.round(h / 24);
+  return `${d}d`;
+}
+
+function getStatusTimings(statusHistory: string | null) {
+  const history = JSON.parse(statusHistory ?? "[]") as { from: string; to: string; at: string }[];
+  let devMs: number | null = null;
+  let testMs: number | null = null;
+
+  const inProgressAt = history.findLast((e) => e.to === "in_progress")?.at;
+  const devDoneAt = history.findLast((e) => e.to === "dev_done")?.at;
+  const doneAt = history.findLast((e) => e.to === "done")?.at;
+
+  if (inProgressAt && devDoneAt) devMs = new Date(devDoneAt).getTime() - new Date(inProgressAt).getTime();
+  if (devDoneAt && doneAt) testMs = new Date(doneAt).getTime() - new Date(devDoneAt).getTime();
+
+  return { devMs, testMs };
+}
 
 const sprintStatusOptions = ["planned", "active", "completed"];
 const FIBONACCI_SP = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
@@ -138,7 +161,7 @@ export default async function SprintPage({
     plannedPoints: number;
     teamId: string;
     team: { id: string; name: string; sprintDuration: number; developers: { id: string; name: string }[]; categoryAllocations: Record<string, number> };
-    userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; createdAt: string }[];
+    userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string | null; createdAt: string }[];
   }
 
   const sprint = await apiFetch<SprintDetails>(`/api/teams/${teamId}/sprints/${sprintId}`).catch(() => null);
@@ -157,6 +180,7 @@ export default async function SprintPage({
   const groupedStories = {
     todo: sprint.userStories.filter((s) => s.status === "todo"),
     in_progress: sprint.userStories.filter((s) => s.status === "in_progress"),
+    dev_done: sprint.userStories.filter((s) => s.status === "dev_done"),
     done: sprint.userStories.filter((s) => s.status === "done"),
   };
 
@@ -294,42 +318,87 @@ export default async function SprintPage({
         );
       })()}
 
-      {/* Category breakdown */}
-      {(() => {
-        const CATEGORIES = [
-          { key: "user_story", label: "User Story", color: "#6366f1" },
-          { key: "bug",        label: "Bug",         color: "#ef4444" },
-          { key: "mco",        label: "MCO",         color: "#f59e0b" },
-          { key: "best_effort",label: "Best-effort", color: "#22c55e" },
-          { key: "tech_lead",  label: "Tech Lead",   color: "#a855f7" },
-        ];
-        const rows = CATEGORIES.map((c) => {
-          const stories = sprint.userStories.filter((s) => s.category === c.key);
-          const sp = stories.reduce((a, s) => a + s.storyPoints, 0);
-          const spDone = stories.filter((s) => s.status === "done").reduce((a, s) => a + s.storyPoints, 0);
-          return { ...c, sp, spDone, count: stories.length };
-        }).filter((c) => c.sp > 0);
-        if (rows.length === 0) return null;
-        return (
-          <div className="mb-6 bg-white rounded-lg border border-gray-200 p-4">
-            <p className="text-sm font-medium text-gray-700 mb-3">Category Breakdown</p>
-            <div className="space-y-2">
-              {rows.map((c) => (
-                <div key={c.key} className="flex items-center gap-3 text-sm">
-                  <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                  <span className="w-28 font-medium text-gray-700">{c.label}</span>
-                  <span className="text-xs text-gray-400">{c.count} stor{c.count !== 1 ? "ies" : "y"}</span>
-                  <span className="ml-auto font-semibold text-indigo-600">{c.spDone} / {c.sp} SP</span>
+      {/* Category breakdown + Transition times */}
+      <div className="flex gap-4 mb-6">
+        {(() => {
+          const alloc = sprint.team.categoryAllocations ?? {};
+          const CATEGORIES = [
+            { key: "user_story", label: "User Story", color: (alloc["user_story_color"] as string) ?? "#6366f1" },
+            { key: "bug",        label: "Bug",         color: (alloc["bug_color"] as string) ?? "#ef4444" },
+            { key: "mco",        label: "MCO",         color: (alloc["mco_color"] as string) ?? "#f59e0b" },
+            { key: "best_effort",label: "Best-effort", color: (alloc["best_effort_color"] as string) ?? "#22c55e" },
+            { key: "tech_lead",  label: "Tech Lead",   color: (alloc["tech_lead_color"] as string) ?? "#a855f7" },
+          ];
+          const rows = CATEGORIES.map((c) => {
+            const stories = sprint.userStories.filter((s) => s.category === c.key);
+            const sp = stories.reduce((a, s) => a + s.storyPoints, 0);
+            const spDone = stories.filter((s) => s.status === "done").reduce((a, s) => a + s.storyPoints, 0);
+            return { ...c, sp, spDone, count: stories.length };
+          }).filter((c) => c.sp > 0);
+          return (
+            <div className="w-1/2 bg-white rounded-lg border border-gray-200 p-4">
+              <p className="text-sm font-medium text-gray-700 mb-3">Category Breakdown</p>
+              {rows.length === 0 ? (
+                <p className="text-xs text-gray-400 italic">No stories with categories yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {rows.map((c) => (
+                    <div key={c.key} className="flex items-center gap-3 text-sm">
+                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                      <span className="w-28 font-medium text-gray-700">{c.label}</span>
+                      <span className="text-xs text-gray-400">{c.count} stor{c.count !== 1 ? "ies" : "y"}</span>
+                      <span className="ml-auto font-semibold text-indigo-600">{c.spDone} / {c.sp} SP</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
+
+        {(() => {
+          const devTimes: number[] = [];
+          const testTimes: number[] = [];
+          for (const story of sprint.userStories) {
+            const { devMs, testMs } = getStatusTimings(story.statusHistory);
+            if (devMs !== null && devMs > 0) devTimes.push(devMs);
+            if (testMs !== null && testMs > 0) testTimes.push(testMs);
+          }
+          const avgDev = devTimes.length > 0 ? devTimes.reduce((a, v) => a + v, 0) / devTimes.length : null;
+          const avgTest = testTimes.length > 0 ? testTimes.reduce((a, v) => a + v, 0) / testTimes.length : null;
+          return (
+            <div className="flex-1 bg-white rounded-lg border border-gray-200 p-4">
+              <p className="text-sm font-medium text-gray-700 mb-3">Avg Transition Times</p>
+              {avgDev === null && avgTest === null ? (
+                <p className="text-xs text-gray-400 italic">No transitions recorded yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {avgDev !== null && (
+                    <div className="flex items-center gap-3">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                      <span className="text-sm text-gray-600">In Progress → Dev Done</span>
+                      <span className="ml-auto font-semibold text-amber-600">{formatDuration(avgDev)}</span>
+                      <span className="text-xs text-gray-400">({devTimes.length} stor{devTimes.length !== 1 ? "ies" : "y"})</span>
+                    </div>
+                  )}
+                  {avgTest !== null && (
+                    <div className="flex items-center gap-3">
+                      <span className="w-2 h-2 rounded-full bg-purple-400 shrink-0" />
+                      <span className="text-sm text-gray-600">Testing → Done</span>
+                      <span className="ml-auto font-semibold text-purple-600">{formatDuration(avgTest)}</span>
+                      <span className="text-xs text-gray-400">({testTimes.length} stor{testTimes.length !== 1 ? "ies" : "y"})</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+      </div>
 
       {/* Kanban columns */}
-      <div className="grid lg:grid-cols-3 gap-4 mb-6">
-        {(["todo", "in_progress", "done"] as const).map((status) => {
+      <div className="flex flex-col gap-3 mb-6">
+        {(["todo", "in_progress", "dev_done", "done"] as const).map((status) => {
           const cfg = storyStatusConfig[status];
           const stories = groupedStories[status];
           const Icon = cfg.icon;
@@ -340,6 +409,8 @@ export default async function SprintPage({
                   className={`h-4 w-4 ${
                     status === "done"
                       ? "text-green-500"
+                      : status === "dev_done"
+                      ? "text-purple-500"
                       : status === "in_progress"
                       ? "text-amber-500"
                       : "text-gray-400"
@@ -359,6 +430,7 @@ export default async function SprintPage({
                   const assignee = sprint.team.developers.find((d) => d.id === story.assigneeId);
 
                   const spHistory = JSON.parse(story.spChanges ?? "[]") as { from: number; to: number; at: string }[];
+                  const { devMs, testMs } = getStatusTimings(story.statusHistory);
 
                   if (editStory === story.id) {
                     return (
@@ -450,6 +522,18 @@ export default async function SprintPage({
                           </div>
                         )}
                       </div>
+
+                      {/* Dev / Test timings */}
+                      {devMs !== null && (
+                        <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 shrink-0" title="Dev time">
+                          dev {formatDuration(devMs)}
+                        </span>
+                      )}
+                      {testMs !== null && (
+                        <span className="text-[10px] text-purple-600 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.5 shrink-0" title="Test time">
+                          test {formatDuration(testMs)}
+                        </span>
+                      )}
 
                       {/* Move — only for todo and in_progress */}
                       {status !== "done" && (

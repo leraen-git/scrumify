@@ -75,7 +75,8 @@ model UserStory {
   assigneeId  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  spChanges   String   @default("[]")
+  spChanges     String   @default("[]")
+  statusHistory String   @default("[]")
 }
 
 model SprintRetrospective {

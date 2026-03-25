@@ -41,7 +41,12 @@ export class StoriesService {
     const updateData: Record<string, unknown> = {};
 
     if (data.title !== undefined) updateData.title = data.title.trim();
-    if (data.status !== undefined) updateData.status = data.status;
+    if (data.status !== undefined && data.status !== current.status) {
+      updateData.status = data.status;
+      const history = JSON.parse(current.statusHistory ?? '[]') as { from: string; to: string; at: string }[];
+      history.push({ from: current.status, to: data.status, at: new Date().toISOString() });
+      updateData.statusHistory = JSON.stringify(history);
+    }
     if (data.category !== undefined) updateData.category = data.category;
     if (data.assigneeId !== undefined) updateData.assigneeId = data.assigneeId ?? null;
 
