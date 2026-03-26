@@ -23,6 +23,7 @@ class UpdateStoryDto {
   @IsOptional() @IsString() assigneeId?: string | null;
   @IsOptional() @IsString() status?: string;
   @IsOptional() @IsString() category?: string;
+  @IsOptional() @IsString() sprintId?: string;
 }
 
 class ImportStoryDto {

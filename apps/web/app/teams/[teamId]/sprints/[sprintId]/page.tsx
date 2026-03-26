@@ -1,3 +1,4 @@
+import { MoveSprintSelect } from "@/components/move-sprint-select";
 import { SprintDatePicker } from "@/components/sprint-date-picker";
 import { SprintStatusSelect } from "@/components/sprint-status-select";
 import { StoriesImporter } from "@/components/stories-importer";
@@ -90,6 +91,19 @@ async function removeStory(storyId: string, sprintId: string, teamId: string) {
   revalidatePath(`/teams/${teamId}/sprints/${sprintId}`);
 }
 
+async function moveStoryToSprint(storyId: string, sprintId: string, teamId: string, formData: FormData) {
+  "use server";
+  const { apiFetch: api } = await import("@/lib/api");
+  const { revalidatePath } = await import("next/cache");
+  const toSprintId = formData.get("toSprintId") as string;
+  if (!toSprintId) return;
+  await api(`/api/teams/${teamId}/sprints/${sprintId}/stories/${storyId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ sprintId: toSprintId }),
+  });
+  revalidatePath(`/teams/${teamId}`, "layout");
+}
+
 async function updateStoryCategory(storyId: string, sprintId: string, teamId: string, formData: FormData) {
   "use server";
   const { apiFetch: api } = await import("@/lib/api");
@@ -174,10 +188,15 @@ export default async function SprintPage({
     plannedPoints: number;
     teamId: string;
     team: { id: string; name: string; sprintDuration: number; developers: { id: string; name: string }[]; categoryAllocations: Record<string, string | number> };
-    userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string | null; createdAt: string }[];
+    userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string | null; sprintHistory: string; createdAt: string }[];
   }
 
-  const sprint = await apiFetch<SprintDetails>(`/api/teams/${teamId}/sprints/${sprintId}`).catch(() => null);
+  const [sprint, plannedSprints] = await Promise.all([
+    apiFetch<SprintDetails>(`/api/teams/${teamId}/sprints/${sprintId}`).catch(() => null),
+    apiFetch<{ id: string; name: string; status: string }[]>(`/api/teams/${teamId}/sprints`)
+      .then((r) => r.filter((s) => s.status === "planned" && s.id !== sprintId))
+      .catch(() => [] as { id: string; name: string; status: string }[]),
+  ]);
   if (!sprint) notFound();
 
   const donePoints = sprint.userStories
@@ -444,9 +463,11 @@ export default async function SprintPage({
                   const removeStoryAction = removeStory.bind(null, story.id, sprintId, teamId);
                   const updateStoryAction = updateStory.bind(null, story.id, sprintId, teamId);
                   const updateCategoryAction = updateStoryCategory.bind(null, story.id, sprintId, teamId);
+                  const moveAction = moveStoryToSprint.bind(null, story.id, sprintId, teamId);
                   const assignee = sprint.team.developers.find((d) => d.id === story.assigneeId);
 
                   const spHistory = JSON.parse(story.spChanges ?? "[]") as { from: number; to: number; at: string }[];
+                  const carryHistory = JSON.parse(story.sprintHistory ?? "[]") as { fromSprintName: string | null }[];
                   const { devMs, testMs } = getStatusTimings(story.statusHistory);
                   const elapsedMs = (status === "in_progress" || status === "dev_done")
                     ? getElapsedMs(story.statusHistory, status, story.createdAt)
@@ -517,6 +538,18 @@ export default async function SprintPage({
                         <span className="text-sm text-gray-800 truncate block leading-tight">{story.title}</span>
                       </div>
 
+                      {/* Carryover badge */}
+                      {carryHistory.length === 1 && (
+                        <span className="text-[10px] text-indigo-500 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 shrink-0">
+                          ↩ {carryHistory[0].fromSprintName ?? "prev sprint"}
+                        </span>
+                      )}
+                      {carryHistory.length > 1 && (
+                        <span className="text-[10px] text-indigo-500 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 shrink-0">
+                          ↩ ×{carryHistory.length}
+                        </span>
+                      )}
+
                       {/* Category */}
                       {isAdmin
                         ? <StoryCategorySelect action={updateCategoryAction} defaultValue={story.category || "user_story"} />
@@ -572,7 +605,7 @@ export default async function SprintPage({
                         </span>
                       )}
 
-                      {/* Move — only for todo and in_progress, admin only */}
+                      {/* Status transition — admin only */}
                       {isAdmin && status !== "done" && (
                         <form action={updateStatusAction} className="shrink-0">
                           <input type="hidden" name="status" value={cfg.next} />
@@ -580,6 +613,11 @@ export default async function SprintPage({
                             → {storyStatusConfig[cfg.next as keyof typeof storyStatusConfig]?.label}
                           </button>
                         </form>
+                      )}
+
+                      {/* Move to sprint — admin, non-done only */}
+                      {isAdmin && status !== "done" && (
+                        <MoveSprintSelect plannedSprints={plannedSprints} action={moveAction} />
                       )}
 
                       {/* Actions — admin only */}

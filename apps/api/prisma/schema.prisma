@@ -106,6 +106,7 @@ model UserStory {
   updatedAt   DateTime @updatedAt
   spChanges     String   @default("[]")
   statusHistory String   @default("[]")
+  sprintHistory String   @default("[]")
 }
 
 model SprintRetrospective {

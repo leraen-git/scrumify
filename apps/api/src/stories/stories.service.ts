@@ -30,7 +30,7 @@ export class StoriesService {
     teamId: string,
     sprintId: string,
     storyId: string,
-    data: { title?: string; storyPoints?: number; assigneeId?: string | null; status?: string; category?: string },
+    data: { title?: string; storyPoints?: number; assigneeId?: string | null; status?: string; category?: string; sprintId?: string },
   ) {
     const sprint = await this.prisma.sprint.findUnique({ where: { id: sprintId } });
     if (!sprint || sprint.teamId !== teamId) throw new NotFoundException();
@@ -55,6 +55,33 @@ export class StoriesService {
       history.push({ from: current.storyPoints, to: data.storyPoints, at: new Date().toISOString() });
       updateData.storyPoints = data.storyPoints;
       updateData.spChanges = JSON.stringify(history);
+    }
+
+    // Sprint move — only allowed for non-done stories
+    if (data.sprintId !== undefined && data.sprintId !== current.sprintId && current.status !== 'done') {
+      const toSprint = await this.prisma.sprint.findUnique({ where: { id: data.sprintId } });
+      if (!toSprint || toSprint.teamId !== teamId) throw new NotFoundException();
+
+      const fromSprint = current.sprintId
+        ? await this.prisma.sprint.findUnique({ where: { id: current.sprintId } })
+        : null;
+
+      const sprintHistory = JSON.parse(current.sprintHistory ?? '[]') as {
+        fromSprintId: string | null;
+        fromSprintName: string | null;
+        toSprintId: string;
+        toSprintName: string;
+        at: string;
+      }[];
+      sprintHistory.push({
+        fromSprintId: current.sprintId ?? null,
+        fromSprintName: fromSprint?.name ?? null,
+        toSprintId: data.sprintId,
+        toSprintName: toSprint.name,
+        at: new Date().toISOString(),
+      });
+      updateData.sprintHistory = JSON.stringify(sprintHistory);
+      updateData.sprintId = data.sprintId;
     }
 
     return this.prisma.userStory.update({ where: { id: storyId }, data: updateData });

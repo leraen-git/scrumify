@@ -30,6 +30,7 @@ interface SprintWithStories {
     category: string;
     assigneeId: string | null;
     statusHistory?: string | null;
+    sprintHistory?: string | null;
   }[];
 }
 
@@ -139,6 +140,12 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
       : sprint.userStories.reduce((a, s) => a + s.storyPoints, 0);
     const workingDays = Math.max(1, countWorkingDays(sprint.startDate, sprint.endDate));
     const velocityPerDay = Math.round((delivered / (workingDays * devCount)) * 100) / 100;
+    const carryoverSP = sprint.userStories
+      .filter((s) => {
+        const h = JSON.parse(s.sprintHistory ?? "[]") as { toSprintId: string }[];
+        return h.some((e) => e.toSprintId === sprint.id);
+      })
+      .reduce((a, s) => a + s.storyPoints, 0);
     return {
       name: sprint.name,
       startDate: sprint.startDate,
@@ -147,6 +154,7 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
       planned,
       delivered,
       velocityPerDay,
+      carryoverSP,
     };
   });
 
@@ -319,6 +327,7 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Capacity</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Planned</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Delivered</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Carryover</th>
                   <th className="text-right px-4 py-3 font-medium text-gray-600">Efficiency</th>
                 </tr>
               </thead>
@@ -341,6 +350,13 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
                       <td className="px-4 py-3 text-right text-gray-600">{sprint.planned}</td>
                       <td className="px-4 py-3 text-right font-semibold text-indigo-600">
                         {sprint.delivered}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        {sprint.carryoverSP > 0 ? (
+                          <span className="font-medium text-amber-600">{sprint.carryoverSP} SP</span>
+                        ) : (
+                          <span className="text-gray-400">—</span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span

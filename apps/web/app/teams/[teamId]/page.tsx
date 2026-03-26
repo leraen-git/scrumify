@@ -1,5 +1,6 @@
 import { CategoryDonutChart } from "@/components/category-donut-chart";
 import { ForecastChart, ForecastSummary, FutureSprintPoint, PastSprintPoint } from "@/components/forecast-chart";
+import { MoveSprintSelect } from "@/components/move-sprint-select";
 import { VelocityChart } from "@/components/velocity-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,19 @@ async function removeStory(storyId: string, sprintId: string, teamId: string) {
   const { revalidatePath: revalidate } = await import("next/cache");
   await api(`/api/teams/${teamId}/sprints/${sprintId}/stories/${storyId}`, { method: "DELETE" });
   revalidate(`/teams/${teamId}`);
+}
+
+async function moveStoryToSprint(storyId: string, sprintId: string, teamId: string, formData: FormData) {
+  "use server";
+  const { apiFetch: api } = await import("@/lib/api");
+  const { revalidatePath: revalidate } = await import("next/cache");
+  const toSprintId = formData.get("toSprintId") as string;
+  if (!toSprintId) return;
+  await api(`/api/teams/${teamId}/sprints/${sprintId}/stories/${storyId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ sprintId: toSprintId }),
+  });
+  revalidate(`/teams/${teamId}`, "layout");
 }
 
 function formatElapsed(ms: number): string {
@@ -127,7 +141,7 @@ export default async function TeamDashboard({
     sprints: {
       id: string; name: string; startDate: string; endDate: string;
       status: string; capacity: number; plannedPoints: number;
-      userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string; createdAt: string }[];
+      userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string; sprintHistory: string; createdAt: string }[];
     }[];
   }
   const [team, forecast] = await Promise.all([
@@ -315,6 +329,11 @@ export default async function TeamDashboard({
         const totalPoints = stories.reduce((a, s) => a + s.storyPoints, 0);
         const progress = activeSprint.capacity > 0 ? Math.round((donePoints / activeSprint.capacity) * 100) : 0;
 
+        const carryoverCount = stories.filter((s) => {
+          const h = JSON.parse(s.sprintHistory ?? "[]") as { toSprintId: string }[];
+          return h.some((e) => e.toSprintId === activeSprint.id);
+        }).length;
+
         const groupedStories = {
           todo: stories.filter((s) => s.status === "todo"),
           in_progress: stories.filter((s) => s.status === "in_progress"),
@@ -330,6 +349,11 @@ export default async function TeamDashboard({
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-semibold text-gray-900">{activeSprint.name}</h2>
                   <Badge variant="success">Active</Badge>
+                  {carryoverCount > 0 && (
+                    <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                      ↩ {carryoverCount} carried over
+                    </span>
+                  )}
                   {isAdmin && (
                     <Link
                       href={`/teams/${teamId}/sprints/${activeSprint.id}?editSprint=1`}
@@ -441,8 +465,10 @@ export default async function TeamDashboard({
                         const updateStatusAction = updateStoryStatus.bind(null, story.id, activeSprint.id, teamId);
                         const removeStoryAction = removeStory.bind(null, story.id, activeSprint.id, teamId);
                         const updateStoryAction = updateStory.bind(null, story.id, activeSprint.id, teamId);
+                        const moveAction = moveStoryToSprint.bind(null, story.id, activeSprint.id, teamId);
                         const assignee = team.developers.find((d) => d.id === story.assigneeId);
                         const spHistory = JSON.parse(story.spChanges ?? "[]") as { from: number; to: number; at: string }[];
+                        const carryHistory = JSON.parse(story.sprintHistory ?? "[]") as { fromSprintName: string | null }[];
                         const elapsedMs = (status === "in_progress" || status === "dev_done")
                           ? getElapsedMs(story.statusHistory, status, story.createdAt)
                           : null;
@@ -492,6 +518,16 @@ export default async function TeamDashboard({
                           <div key={story.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-gray-100 bg-gray-50">
                             <span className="text-[10px] font-mono text-gray-300 shrink-0">#{story.id.slice(0, 8)}</span>
                             <span className="flex-1 min-w-0 text-sm text-gray-800 truncate">{story.title}</span>
+                            {carryHistory.length === 1 && (
+                              <span className="text-[10px] text-indigo-500 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 shrink-0">
+                                ↩ {carryHistory[0].fromSprintName ?? "prev sprint"}
+                              </span>
+                            )}
+                            {carryHistory.length > 1 && (
+                              <span className="text-[10px] text-indigo-500 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5 shrink-0">
+                                ↩ ×{carryHistory.length}
+                              </span>
+                            )}
                             {assignee && <span className="text-xs text-gray-400 shrink-0 hidden sm:block">{assignee.name}</span>}
                             <div className="relative group shrink-0">
                               <span className={`text-xs font-semibold cursor-default ${spHistory.length > 0 ? "text-red-500" : "text-gray-500"}`}>
@@ -540,6 +576,9 @@ export default async function TeamDashboard({
                                   → {storyStatusConfig[cfg.next as keyof typeof storyStatusConfig]?.label}
                                 </button>
                               </form>
+                            )}
+                            {isAdmin && status !== "done" && (
+                              <MoveSprintSelect plannedSprints={plannedSprints} action={moveAction} />
                             )}
                             {isAdmin && (
                               <>
