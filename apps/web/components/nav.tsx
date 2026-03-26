@@ -10,7 +10,9 @@ export async function Nav() {
   const ctx = cookieStore.get("scrumify_ctx")?.value ?? "";
   const isAdmin = ctx !== "" && !ctx.startsWith("user:");
 
-  const teams = await apiFetch<{ id: string; name: string; sprintDuration: number; _count: { developers: number } }[]>("/api/teams").catch(() => []);
+  const teams = isAdmin
+    ? await apiFetch<{ id: string; name: string; sprintDuration: number; _count: { developers: number } }[]>("/api/teams").catch(() => [])
+    : [];
 
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">

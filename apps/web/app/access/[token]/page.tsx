@@ -18,6 +18,8 @@ export default function AccessPage() {
       .then(async (res) => {
         if (!res.ok) throw new Error("Invalid or expired access link");
         const data = await res.json();
+        // Flush the router cache so the nav re-renders with the new user cookie
+        router.refresh();
         if (data.assignedTeamId) {
           router.replace(`/teams/${data.assignedTeamId}`);
         } else {
