@@ -1,4 +1,5 @@
 import { CategoryDonutChart } from "@/components/category-donut-chart";
+import { ForecastChart, ForecastSummary, FutureSprintPoint, PastSprintPoint } from "@/components/forecast-chart";
 import { VelocityChart } from "@/components/velocity-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,33 @@ async function removeStory(storyId: string, sprintId: string, teamId: string) {
   revalidate(`/teams/${teamId}`);
 }
 
+function formatElapsed(ms: number): string {
+  const h = Math.floor(ms / 3_600_000);
+  if (h < 1) return "< 1h";
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+function getElapsedMs(statusHistory: string | null, status: string, createdAt?: string): number | null {
+  const history = JSON.parse(statusHistory ?? "[]") as { from: string; to: string; at: string }[];
+  const entered = [...history].reverse().find((e) => e.to === status);
+  if (entered) return Date.now() - new Date(entered.at).getTime();
+  // Fallback: story was created/imported directly in this status — use createdAt
+  if (createdAt) return Date.now() - new Date(createdAt).getTime();
+  return null;
+}
+
+function getCompletedTimings(statusHistory: string | null) {
+  const history = JSON.parse(statusHistory ?? "[]") as { from: string; to: string; at: string }[];
+  const inProgressAt = history.findLast((e) => e.to === "in_progress")?.at;
+  const devDoneAt    = history.findLast((e) => e.to === "dev_done")?.at;
+  const doneAt       = history.findLast((e) => e.to === "done")?.at;
+  return {
+    devMs:  inProgressAt && devDoneAt ? new Date(devDoneAt).getTime() - new Date(inProgressAt).getTime() : null,
+    testMs: devDoneAt && doneAt       ? new Date(doneAt).getTime()    - new Date(devDoneAt).getTime()    : null,
+  };
+}
+
 const storyStatusConfig = {
   todo: { label: "To Do", icon: Circle, next: "in_progress" },
   in_progress: { label: "In Progress", icon: Clock, next: "dev_done" },
@@ -86,6 +114,12 @@ export default async function TeamDashboard({
   const ctx = cookieStore.get("scrumify_ctx")?.value ?? "";
   const isAdmin = !ctx.startsWith("user:");
 
+  interface ForecastResponse {
+    past: PastSprintPoint[];
+    future: FutureSprintPoint[];
+    summary: ForecastSummary;
+  }
+
   interface TeamDashboardData {
     id: string;
     developers: { id: string; name: string; storyPointsPerSprint: number }[];
@@ -93,10 +127,13 @@ export default async function TeamDashboard({
     sprints: {
       id: string; name: string; startDate: string; endDate: string;
       status: string; capacity: number; plannedPoints: number;
-      userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string }[];
+      userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string; createdAt: string }[];
     }[];
   }
-  const team = await apiFetch<TeamDashboardData>(`/api/teams/${teamId}`).catch(() => null);
+  const [team, forecast] = await Promise.all([
+    apiFetch<TeamDashboardData>(`/api/teams/${teamId}`).catch(() => null),
+    apiFetch<ForecastResponse>(`/api/teams/${teamId}/forecast`).catch(() => null),
+  ]);
   if (!team) notFound();
 
   const activeSprint = team.sprints.find((s) => s.status === "active");
@@ -231,6 +268,17 @@ export default async function TeamDashboard({
             </CardContent>
           </Card>
         </div>
+
+        {/* Forecast chart inside Project Overview */}
+        {forecast && (forecast.past.length > 0 || forecast.future.length > 0) && (
+          <div className="mt-4">
+            <ForecastChart
+              past={forecast.past}
+              future={forecast.future}
+              summary={forecast.summary}
+            />
+          </div>
+        )}
       </div>
 
       {/* Sprint Overview + Category Breakdown */}
@@ -395,6 +443,12 @@ export default async function TeamDashboard({
                         const updateStoryAction = updateStory.bind(null, story.id, activeSprint.id, teamId);
                         const assignee = team.developers.find((d) => d.id === story.assigneeId);
                         const spHistory = JSON.parse(story.spChanges ?? "[]") as { from: number; to: number; at: string }[];
+                        const elapsedMs = (status === "in_progress" || status === "dev_done")
+                          ? getElapsedMs(story.statusHistory, status, story.createdAt)
+                          : null;
+                        const { devMs, testMs } = status === "done"
+                          ? getCompletedTimings(story.statusHistory)
+                          : { devMs: null, testMs: null };
 
                         if (isAdmin && editStory === story.id) {
                           return (
@@ -455,6 +509,30 @@ export default async function TeamDashboard({
                                 </div>
                               )}
                             </div>
+                            {/* Elapsed timer for active stories */}
+                            {elapsedMs !== null && (
+                              <span
+                                className={`text-[10px] rounded px-1.5 py-0.5 shrink-0 ${
+                                  status === "dev_done"
+                                    ? "text-purple-600 bg-purple-50 border border-purple-200"
+                                    : "text-amber-600 bg-amber-50 border border-amber-200"
+                                }`}
+                                title={`Time in ${status === "dev_done" ? "testing" : "dev"}`}
+                              >
+                                ⏱ {formatElapsed(elapsedMs)}
+                              </span>
+                            )}
+                            {/* Completed dev/test timings */}
+                            {devMs !== null && (
+                              <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 shrink-0">
+                                dev {formatElapsed(devMs)}
+                              </span>
+                            )}
+                            {testMs !== null && (
+                              <span className="text-[10px] text-purple-600 bg-purple-50 border border-purple-200 rounded px-1.5 py-0.5 shrink-0">
+                                test {formatElapsed(testMs)}
+                              </span>
+                            )}
                             {isAdmin && status !== "done" && (
                               <form action={updateStatusAction} className="shrink-0">
                                 <input type="hidden" name="status" value={cfg.next} />
@@ -517,24 +595,25 @@ export default async function TeamDashboard({
       {/* Upcoming sprints */}
       {plannedSprints.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-base font-semibold text-gray-900 mb-3">Upcoming Sprints</h2>
-          <div className="space-y-3">
+          <h2 className="text-base font-semibold text-gray-900 mb-3">
+            Upcoming Sprints <span className="text-sm font-normal text-gray-400">· {plannedSprints.length}</span>
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {plannedSprints.map((sprint) => {
               const planned = sprint.plannedPoints > 0 ? sprint.plannedPoints : sprint.userStories.reduce((a, s) => a + s.storyPoints, 0);
-              const cfg = statusConfig.planned;
               return (
                 <Link key={sprint.id} href={`/teams/${teamId}/sprints/${sprint.id}`} className="block">
-                  <Card className="hover:shadow-sm transition-shadow cursor-pointer">
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div>
-                        <span className="text-sm font-medium text-gray-900">{sprint.name}</span>
-                        <div className="text-xs text-gray-400 mt-0.5">
-                          {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
-                        </div>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <span className="text-sm font-medium text-gray-900 leading-snug">{sprint.name}</span>
+                        <Badge variant="secondary" className="shrink-0">Planned</Badge>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-500">{planned > 0 ? `${planned} SP planned` : "No stories yet"}</span>
-                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      <div className="text-xs text-gray-400">
+                        {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {planned > 0 ? `${planned} SP planned` : "No stories yet"}
                       </div>
                     </CardContent>
                   </Card>
@@ -545,30 +624,29 @@ export default async function TeamDashboard({
         </div>
       )}
 
-      {/* Recent completed sprints */}
+      {/* Completed sprints */}
       {completedSprints.length > 0 && (
         <div>
-          <h2 className="text-base font-semibold text-gray-900 mb-3">Recent Sprints</h2>
-          <div className="space-y-3">
-            {completedSprints.slice(0, 3).map((sprint) => {
+          <h2 className="text-base font-semibold text-gray-900 mb-3">
+            Completed Sprints <span className="text-sm font-normal text-gray-400">· {completedSprints.length}</span>
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {completedSprints.map((sprint) => {
               const done = sprint.userStories
                 .filter((s) => s.status === "done")
                 .reduce((a, s) => a + s.storyPoints, 0);
-              const cfg = statusConfig[sprint.status as keyof typeof statusConfig] ?? statusConfig.planned;
               return (
                 <Link key={sprint.id} href={`/teams/${teamId}/sprints/${sprint.id}`} className="block">
-                  <Card className="hover:shadow-sm transition-shadow cursor-pointer">
-                    <CardContent className="p-4 flex items-center justify-between">
-                      <div>
-                        <span className="text-sm font-medium text-gray-900">{sprint.name}</span>
-                        <div className="text-xs text-gray-400 mt-0.5">
-                          {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
-                        </div>
+                  <Card className="hover:shadow-md transition-shadow cursor-pointer h-full">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <span className="text-sm font-medium text-gray-900 leading-snug">{sprint.name}</span>
+                        <Badge variant="outline" className="shrink-0">Done</Badge>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-gray-500">{done} SP delivered</span>
-                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      <div className="text-xs text-gray-400">
+                        {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
                       </div>
+                      <div className="text-xs text-gray-500 mt-1">{done} SP delivered</div>
                     </CardContent>
                   </Card>
                 </Link>

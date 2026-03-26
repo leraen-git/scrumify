@@ -84,9 +84,9 @@ function EditableRow({
             </>
           ) : (
             <>
-              <Link href={`/teams/${team.id}`} className="text-gray-400 hover:text-indigo-600 transition-colors" title="Open team dashboard">
+              <a href={`/teams/${team.id}`} className="text-gray-400 hover:text-indigo-600 transition-colors" title="Open team dashboard">
                 <ExternalLink className="h-4 w-4" />
-              </Link>
+              </a>
               <button onClick={() => setEditing(true)} className="text-gray-400 hover:text-indigo-600 transition-colors" title="Edit">
                 <Pencil className="h-4 w-4" />
               </button>

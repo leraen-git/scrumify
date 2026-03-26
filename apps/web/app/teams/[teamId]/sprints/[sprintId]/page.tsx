@@ -110,10 +110,18 @@ const storyStatusConfig = {
 };
 
 function formatDuration(ms: number): string {
-  const h = Math.round(ms / 3600000);
+  const h = Math.floor(ms / 3_600_000);
+  if (h < 1) return "< 1h";
   if (h < 24) return `${h}h`;
-  const d = Math.round(h / 24);
-  return `${d}d`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+function getElapsedMs(statusHistory: string | null, status: string, createdAt?: string): number | null {
+  const history = JSON.parse(statusHistory ?? "[]") as { from: string; to: string; at: string }[];
+  const entered = [...history].reverse().find((e) => e.to === status);
+  if (entered) return Date.now() - new Date(entered.at).getTime();
+  if (createdAt) return Date.now() - new Date(createdAt).getTime();
+  return null;
 }
 
 function getStatusTimings(statusHistory: string | null) {
@@ -440,6 +448,9 @@ export default async function SprintPage({
 
                   const spHistory = JSON.parse(story.spChanges ?? "[]") as { from: number; to: number; at: string }[];
                   const { devMs, testMs } = getStatusTimings(story.statusHistory);
+                  const elapsedMs = (status === "in_progress" || status === "dev_done")
+                    ? getElapsedMs(story.statusHistory, status, story.createdAt)
+                    : null;
 
                   if (isAdmin && editStory === story.id) {
                     return (
@@ -535,7 +546,21 @@ export default async function SprintPage({
                         )}
                       </div>
 
-                      {/* Dev / Test timings */}
+                      {/* Elapsed in current status (for active stories) */}
+                      {elapsedMs !== null && (
+                        <span
+                          className={`text-[10px] rounded px-1.5 py-0.5 shrink-0 ${
+                            status === "dev_done"
+                              ? "text-purple-600 bg-purple-50 border border-purple-200"
+                              : "text-amber-600 bg-amber-50 border border-amber-200"
+                          }`}
+                          title={`Time in ${status === "dev_done" ? "testing" : "dev"}`}
+                        >
+                          ⏱ {formatDuration(elapsedMs)}
+                        </span>
+                      )}
+
+                      {/* Completed dev / test timings */}
                       {devMs !== null && (
                         <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 shrink-0" title="Dev time">
                           dev {formatDuration(devMs)}

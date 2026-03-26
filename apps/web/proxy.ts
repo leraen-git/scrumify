@@ -10,6 +10,12 @@ export function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // RSC navigations and prefetch requests don't carry cookies in VS Code's browser.
+  // Let them through — page-level server components handle their own data auth.
+  // Only full-page loads get the redirect-to-login treatment.
+  const isRSC = req.headers.has("rsc") || req.headers.has("next-router-prefetch");
+  if (isRSC) return NextResponse.next();
+
   const ctx = req.cookies.get("scrumify_ctx")?.value ?? "";
 
   // No session → login

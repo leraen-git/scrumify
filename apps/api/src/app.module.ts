@@ -7,6 +7,7 @@ import { TeamsModule } from './teams/teams.module';
 import { DevelopersModule } from './developers/developers.module';
 import { SprintsModule } from './sprints/sprints.module';
 import { StoriesModule } from './stories/stories.module';
+import { ForecastModule } from './forecast/forecast.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { SessionGuard } from './auth/session.guard';
@@ -22,6 +23,7 @@ import { SessionGuard } from './auth/session.guard';
     DevelopersModule,
     SprintsModule,
     StoriesModule,
+    ForecastModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

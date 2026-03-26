@@ -7,12 +7,20 @@ const cookieParser = require('cookie-parser');
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const certsDir = resolve(process.cwd(), 'certs');
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  const httpsOptions = isProduction
+    ? undefined
+    : (() => {
+        const certsDir = resolve(process.cwd(), 'certs');
+        return {
+          key: readFileSync(resolve(certsDir, 'localhost-key.pem')),
+          cert: readFileSync(resolve(certsDir, 'localhost.pem')),
+        };
+      })();
+
   const app = await NestFactory.create(AppModule, {
-    httpsOptions: {
-      key: readFileSync(resolve(certsDir, 'localhost-key.pem')),
-      cert: readFileSync(resolve(certsDir, 'localhost.pem')),
-    },
+    httpsOptions,
     bodyParser: true,
   });
 
@@ -31,7 +39,8 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  console.log(`API running on https://localhost:${port}`);
+  const scheme = isProduction ? 'http' : 'https';
+  console.log(`API running on ${scheme}://localhost:${port}`);
 }
 
 bootstrap();

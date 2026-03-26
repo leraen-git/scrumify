@@ -1,5 +1,8 @@
 import { CategoryDonutChart } from "@/components/category-donut-chart";
+import { EstimationScatterChart, ScatterPoint } from "@/components/estimation-scatter-chart";
+import { ForecastChart, ForecastSummary, FutureSprintPoint, PastSprintPoint } from "@/components/forecast-chart";
 import { RetroAdviceCard } from "@/components/retro-advice-card";
+import { StoriesImporter } from "@/components/stories-importer";
 import { VelocityChart } from "@/components/velocity-chart";
 import { apiFetch } from "@/lib/api";
 import { countWorkingDays, formatDate } from "@/lib/utils";
@@ -25,8 +28,15 @@ interface SprintWithStories {
     status: string;
     storyPoints: number;
     category: string;
+    assigneeId: string | null;
     statusHistory?: string | null;
   }[];
+}
+
+interface ForecastResponse {
+  past: PastSprintPoint[];
+  future: FutureSprintPoint[];
+  summary: ForecastSummary;
 }
 
 function calcStatusDurationHours(raw: string | null | undefined, fromStatus: string, toStatus: string): number | null {
@@ -45,7 +55,13 @@ function calcStatusDurationHours(raw: string | null | undefined, fromStatus: str
 export default async function VelocityPage({ params }: { params: Promise<{ teamId: string }> }) {
   const { teamId } = await params;
 
-  const team = await apiFetch<{ id: string; developers: { id: string }[]; sprints: SprintWithStories[]; categoryAllocations: Record<string, string | number> }>(`/api/teams/${teamId}`).catch(() => null);
+  const [team, forecast] = await Promise.all([
+    apiFetch<{ id: string; developers: { id: string; name: string }[]; sprints: SprintWithStories[]; categoryAllocations: Record<string, string | number> }>(
+      `/api/teams/${teamId}`,
+    ).catch(() => null),
+    apiFetch<ForecastResponse>(`/api/teams/${teamId}/forecast`).catch(() => null),
+  ]);
+
   if (!team) notFound();
 
   const completedSprints = team.sprints
@@ -60,6 +76,59 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
   ];
 
   const devCount = Math.max(1, team.developers.length);
+
+  const devStats = team.developers.map((dev) => {
+    const activeDone = activeSprint
+      ? activeSprint.userStories
+          .filter((s) => s.assigneeId === dev.id && s.status === "done")
+          .reduce((a, s) => a + s.storyPoints, 0)
+      : null;
+    const totalCompleted = completedSprints.reduce(
+      (a, sprint) =>
+        a + sprint.userStories
+          .filter((s) => s.assigneeId === dev.id && s.status === "done")
+          .reduce((b, s) => b + s.storyPoints, 0),
+      0,
+    );
+    const avgSP =
+      completedSprints.length > 0
+        ? Math.round((totalCompleted / completedSprints.length) * 10) / 10
+        : null;
+    return { id: dev.id, name: dev.name, activeDone, avgSP };
+  });
+
+  const scatterData: ScatterPoint[] = completedSprints.flatMap((sprint) =>
+    sprint.userStories
+      .filter((s) => s.status === "done" && s.statusHistory)
+      .flatMap((s): ScatterPoint[] => {
+        const history: StatusEvent[] = JSON.parse(s.statusHistory ?? "[]");
+
+        const enteredDev = history.find((e) => e.to === "in_progress");
+        const leftDev = history.find(
+          (e) => e.from === "in_progress" && (e.to === "dev_done" || e.to === "done"),
+        );
+        const devHours =
+          enteredDev && leftDev
+            ? Math.round(
+                (new Date(leftDev.at).getTime() - new Date(enteredDev.at).getTime()) / 3_600_000,
+              )
+            : 0;
+
+        const enteredTest = history.find((e) => e.to === "dev_done");
+        const leftTest = history.find((e) => e.from === "dev_done" && e.to === "done");
+        const testHours =
+          enteredTest && leftTest
+            ? Math.round(
+                (new Date(leftTest.at).getTime() - new Date(enteredTest.at).getTime()) / 3_600_000,
+              )
+            : 0;
+
+        const hours = devHours + testHours;
+        if (hours === 0) return [];
+
+        return [{ sp: s.storyPoints, hours, devHours, testHours, title: s.title }];
+      }),
+  );
 
   const sprintVelocities = completedSprints.map((sprint) => {
     const delivered = sprint.userStories
@@ -117,8 +186,8 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
     capacity: sprint.capacity,
     plannedPoints: sprint.plannedPoints,
     stories: sprint.userStories.map((s) => {
-      const devHours = calcStatusDurationHours(s.statusHistory, "in_progress", "testing") ?? undefined;
-      const testHours = calcStatusDurationHours(s.statusHistory, "testing", "done") ?? undefined;
+      const devHours = calcStatusDurationHours(s.statusHistory, "in_progress", "dev_done") ?? undefined;
+      const testHours = calcStatusDurationHours(s.statusHistory, "dev_done", "done") ?? undefined;
       return {
         title: s.title,
         storyPoints: s.storyPoints,
@@ -142,10 +211,22 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
       </div>
 
       {sprintVelocities.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
-          <TrendingUp className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-          <p className="text-gray-500 text-sm">No completed sprints yet.</p>
-          <p className="text-gray-400 text-xs mt-1">Velocity data will appear here once sprints are completed.</p>
+        <div className="space-y-6">
+          <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
+            <TrendingUp className="h-10 w-10 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm">No completed sprints yet.</p>
+            <p className="text-gray-400 text-xs mt-1">Velocity data will appear here once sprints are completed.</p>
+          </div>
+
+          {/* Backlog import available even without completed sprints */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Backlog Import</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Import your full backlog from CSV or Excel. Use a <strong>Sprint</strong> column to
+              assign stories to specific sprints; leave it blank to add stories to the backlog.
+            </p>
+            <StoriesImporter teamId={teamId} mode="backlog" />
+          </div>
         </div>
       ) : (
         <div className="space-y-6">
@@ -176,59 +257,110 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
             })()}
           </div>
 
+          {/* Forecast chart */}
+          {forecast && (forecast.past.length > 0 || forecast.future.length > 0) && (
+            <ForecastChart
+              past={forecast.past}
+              future={forecast.future}
+              summary={forecast.summary}
+            />
+          )}
+
+          {/* Backlog import */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="text-sm font-semibold text-gray-700 mb-1">Backlog Import</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              Import your full backlog. Add a <strong>Sprint</strong> column to assign stories to
+              specific sprints; leave blank to add to the backlog (used in the forecast above).
+            </p>
+            <StoriesImporter teamId={teamId} mode="backlog" />
+          </div>
+
+          {/* Estimation accuracy scatter */}
+          <EstimationScatterChart data={scatterData} />
+
+          {/* Developer contributions */}
+          {devStats.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">Developer Contributions</h3>
+              <div className="divide-y divide-gray-50">
+                {devStats.map((dev) => (
+                  <div key={dev.id} className="flex items-center justify-between py-2 first:pt-0 last:pb-0">
+                    <span className="text-sm text-gray-800 font-medium">{dev.name}</span>
+                    <div className="flex items-center gap-6 text-xs text-gray-500">
+                      {dev.activeDone !== null && (
+                        <span>
+                          Active sprint:{" "}
+                          <strong className="text-gray-900">{dev.activeDone} SP</strong>
+                        </span>
+                      )}
+                      <span>
+                        Avg:{" "}
+                        <strong className="text-indigo-600">
+                          {dev.avgSP !== null ? `${dev.avgSP} SP` : "—"}
+                        </strong>
+                        {" "}/ sprint
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <RetroAdviceCard sprints={retroSprints} />
 
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Sprint</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Period</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Capacity</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Planned</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Delivered</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-600">Efficiency</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sprintVelocities.map((sprint, i) => {
-                const efficiency =
-                  sprint.capacity > 0
-                    ? Math.round((sprint.delivered / sprint.capacity) * 100)
-                    : 0;
-                return (
-                  <tr
-                    key={i}
-                    className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-900">{sprint.name}</td>
-                    <td className="px-4 py-3 text-gray-500">
-                      {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
-                    </td>
-                    <td className="px-4 py-3 text-right text-gray-600">{sprint.capacity}</td>
-                    <td className="px-4 py-3 text-right text-gray-600">{sprint.planned}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-indigo-600">
-                      {sprint.delivered}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <span
-                        className={`font-medium ${
-                          efficiency >= 80
-                            ? "text-green-600"
-                            : efficiency >= 50
-                            ? "text-amber-600"
-                            : "text-red-500"
-                        }`}
-                      >
-                        {efficiency}%
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Sprint</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Period</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Capacity</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Planned</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Delivered</th>
+                  <th className="text-right px-4 py-3 font-medium text-gray-600">Efficiency</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sprintVelocities.map((sprint, i) => {
+                  const efficiency =
+                    sprint.capacity > 0
+                      ? Math.round((sprint.delivered / sprint.capacity) * 100)
+                      : 0;
+                  return (
+                    <tr
+                      key={i}
+                      className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="px-4 py-3 font-medium text-gray-900">{sprint.name}</td>
+                      <td className="px-4 py-3 text-gray-500">
+                        {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-600">{sprint.capacity}</td>
+                      <td className="px-4 py-3 text-right text-gray-600">{sprint.planned}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-indigo-600">
+                        {sprint.delivered}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span
+                          className={`font-medium ${
+                            efficiency >= 80
+                              ? "text-green-600"
+                              : efficiency >= 50
+                              ? "text-amber-600"
+                              : "text-red-500"
+                          }`}
+                        >
+                          {efficiency}%
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

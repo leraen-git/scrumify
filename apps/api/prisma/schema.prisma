@@ -14,6 +14,7 @@ model User {
   passwordHash   String?
   role           String    @default("user")
   accessToken    String?   @unique
+  accessLink     String?
   assignedTeamId String?
   assignedTeam   Team?     @relation("UserTeamAssignment", fields: [assignedTeamId], references: [id], onDelete: SetNull)
   createdAt      DateTime  @default(now())
@@ -41,6 +42,7 @@ model Team {
   members        User[]      @relation("UserTeamAssignment")
   developers          Developer[]
   sprints             Sprint[]
+  userStories         UserStory[]
 }
 
 model Developer {
@@ -97,6 +99,8 @@ model UserStory {
   priority    Int      @default(0)
   sprintId    String?
   sprint      Sprint?  @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  teamId      String?
+  team        Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
   assigneeId  String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

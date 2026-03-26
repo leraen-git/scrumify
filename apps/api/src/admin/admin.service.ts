@@ -2,6 +2,12 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from 'crypto';
 
+const APP_URL = process.env.APP_URL ?? 'https://localhost:3000';
+
+function buildAccessLink(token: string) {
+  return `${APP_URL}/access?token=${token}`;
+}
+
 @Injectable()
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
@@ -15,6 +21,7 @@ export class AdminService {
         name: true,
         role: true,
         accessToken: true,
+        accessLink: true,
         assignedTeamId: true,
         assignedTeam: { select: { id: true, name: true } },
         createdAt: true,
@@ -32,6 +39,7 @@ export class AdminService {
         name: data.name,
         role: 'user',
         accessToken,
+        accessLink: buildAccessLink(accessToken),
         assignedTeamId: data.teamId,
       },
       select: {
@@ -39,6 +47,7 @@ export class AdminService {
         name: true,
         role: true,
         accessToken: true,
+        accessLink: true,
         assignedTeamId: true,
         assignedTeam: { select: { id: true, name: true } },
         createdAt: true,
@@ -62,6 +71,7 @@ export class AdminService {
         name: true,
         role: true,
         accessToken: true,
+        accessLink: true,
         assignedTeamId: true,
         assignedTeam: { select: { id: true, name: true } },
         createdAt: true,
@@ -84,8 +94,8 @@ export class AdminService {
     const accessToken = randomUUID();
     return this.prisma.user.update({
       where: { id: userId },
-      data: { accessToken },
-      select: { id: true, accessToken: true },
+      data: { accessToken, accessLink: buildAccessLink(accessToken) },
+      select: { id: true, accessToken: true, accessLink: true },
     });
   }
 }

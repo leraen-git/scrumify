@@ -8,6 +8,8 @@ import {
 import { Type } from 'class-transformer';
 import { StoriesService } from './stories.service';
 
+// ── DTOs ─────────────────────────────────────────────────────────────────
+
 class CreateStoryDto {
   @IsString() @IsNotEmpty() @MaxLength(500) title: string;
   @IsInt() @Min(1) storyPoints: number;
@@ -39,6 +41,42 @@ class ImportStoriesDto {
   stories: ImportStoryDto[];
 }
 
+class BacklogImportStoryDto {
+  @IsString() @IsNotEmpty() @MaxLength(500) title: string;
+  @IsNumber() @Min(1) storyPoints: number;
+  @IsString() status: string;
+  @IsString() @IsNotEmpty() category: string;
+  @IsOptional() @IsString() @MaxLength(200) assigneeName?: string;
+  @IsOptional() @IsString() @MaxLength(100) sprintName?: string;
+  @IsOptional() @IsInt() @Min(0) priority?: number;
+}
+
+class BacklogImportDto {
+  @IsArray()
+  @ArrayMaxSize(500)
+  @ValidateNested({ each: true })
+  @Type(() => BacklogImportStoryDto)
+  stories: BacklogImportStoryDto[];
+}
+
+// ── Controllers ───────────────────────────────────────────────────────────
+
+/** Backlog-level routes: /api/teams/:teamId/backlog/... */
+@Controller('teams/:teamId/backlog')
+export class BacklogController {
+  constructor(private readonly service: StoriesService) {}
+
+  @Post('import')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  importBacklog(
+    @Param('teamId') teamId: string,
+    @Body() dto: BacklogImportDto,
+  ) {
+    return this.service.importBacklog(teamId, dto.stories);
+  }
+}
+
+/** Sprint-stories routes: /api/teams/:teamId/sprints/:sprintId/stories/... */
 @Controller('teams/:teamId/sprints/:sprintId/stories')
 export class StoriesController {
   constructor(private readonly service: StoriesService) {}
