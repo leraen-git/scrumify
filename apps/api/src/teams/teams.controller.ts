@@ -2,7 +2,7 @@ import {
   Controller, Get, Post, Patch, Delete,
   Param, Body, HttpCode, HttpStatus,
 } from '@nestjs/common';
-import { IsString, IsInt, IsNotEmpty, Min, Max, IsOptional, IsObject } from 'class-validator';
+import { IsString, IsInt, IsNotEmpty, Min, Max, IsOptional } from 'class-validator';
 import { TeamsService } from './teams.service';
 
 class CreateTeamDto {

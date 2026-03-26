@@ -17,6 +17,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 const FIBONACCI_SP = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
@@ -81,6 +82,10 @@ export default async function TeamDashboard({
   const { teamId } = await params;
   const { editStory } = await searchParams;
 
+  const cookieStore = await cookies();
+  const ctx = cookieStore.get("scrumify_ctx")?.value ?? "";
+  const isAdmin = !ctx.startsWith("user:");
+
   interface TeamDashboardData {
     id: string;
     developers: { id: string; name: string; storyPointsPerSprint: number }[];
@@ -88,13 +93,16 @@ export default async function TeamDashboard({
     sprints: {
       id: string; name: string; startDate: string; endDate: string;
       status: string; capacity: number; plannedPoints: number;
-      userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null }[];
+      userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string }[];
     }[];
   }
   const team = await apiFetch<TeamDashboardData>(`/api/teams/${teamId}`).catch(() => null);
   if (!team) notFound();
 
   const activeSprint = team.sprints.find((s) => s.status === "active");
+  const plannedSprints = team.sprints
+    .filter((s) => s.status === "planned")
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
   const completedSprints = team.sprints
     .filter((s) => s.status === "completed")
     .sort((a, b) => a.startDate.localeCompare(b.startDate));
@@ -110,6 +118,44 @@ export default async function TeamDashboard({
               .reduce((b, u) => b + u.storyPoints, 0);
             return a + done;
           }, 0) / completedSprints.length
+        )
+      : null;
+
+  function calcAvgStatusDuration(
+    stories: { statusHistory: string }[],
+    enterStatus: string,
+  ): number | null {
+    const durations: number[] = [];
+    for (const story of stories) {
+      const history = JSON.parse(story.statusHistory ?? "[]") as { from: string; to: string; at: string }[];
+      const enteredIdx = history.findIndex((h) => h.to === enterStatus);
+      if (enteredIdx === -1) continue;
+      const enteredAt = new Date(history[enteredIdx].at).getTime();
+      const leftEntry = history.slice(enteredIdx + 1).find((h) => h.from === enterStatus);
+      if (!leftEntry) continue;
+      durations.push((new Date(leftEntry.at).getTime() - enteredAt) / (1000 * 60 * 60));
+    }
+    if (durations.length === 0) return null;
+    return Math.round((durations.reduce((a, b) => a + b, 0) / durations.length) * 10) / 10;
+  }
+
+  function formatDuration(hours: number): string {
+    if (hours < 24) return `${hours}h`;
+    return `${Math.round((hours / 24) * 10) / 10}d`;
+  }
+
+  const completedStories = completedSprints.flatMap((s) => s.userStories.filter((u) => u.status === "done"));
+  const avgDevTime = calcAvgStatusDuration(completedStories, "in_progress");
+  const avgTestTime = calcAvgStatusDuration(completedStories, "dev_done");
+
+  const avgCompletion =
+    completedSprints.length > 0
+      ? Math.round(
+          completedSprints.reduce((a, s) => {
+            const done = s.userStories.filter((u) => u.status === "done").reduce((b, u) => b + u.storyPoints, 0);
+            const capacity = s.capacity > 0 ? s.capacity : s.userStories.reduce((b, u) => b + u.storyPoints, 0);
+            return a + (capacity > 0 ? done / capacity : 0);
+          }, 0) / completedSprints.length * 100
         )
       : null;
 
@@ -142,34 +188,49 @@ export default async function TeamDashboard({
 
   return (
     <div>
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-gray-900">{team.developers.length}</div>
-            <div className="text-sm text-gray-500 mt-1">Developers</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-indigo-600">{totalCapacity}</div>
-            <div className="text-sm text-gray-500 mt-1">SP Capacity / Sprint</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-gray-900">{team.sprints.length}</div>
-            <div className="text-sm text-gray-500 mt-1">Total Sprints</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600">
-              {avgVelocity !== null ? avgVelocity : "—"}
-            </div>
-            <div className="text-sm text-gray-500 mt-1">Avg Velocity (SP)</div>
-          </CardContent>
-        </Card>
+      {/* Project Overview */}
+      <div className="mb-6">
+        <h2 className="text-base font-semibold text-gray-900 mb-4">Project Overview</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-2xl font-bold text-gray-900">{team.sprints.length}</div>
+              <div className="text-sm text-gray-500 mt-1">Total Sprints</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-2xl font-bold text-green-600">
+                {avgVelocity !== null ? avgVelocity : "—"}
+              </div>
+              <div className="text-sm text-gray-500 mt-1">Avg Velocity (SP)</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-2xl font-bold text-indigo-600">
+                {avgDevTime !== null ? formatDuration(avgDevTime) : "—"}
+              </div>
+              <div className="text-sm text-gray-500 mt-1">Avg Dev Time</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-2xl font-bold text-purple-600">
+                {avgTestTime !== null ? formatDuration(avgTestTime) : "—"}
+              </div>
+              <div className="text-sm text-gray-500 mt-1">Avg Test Time</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-2xl font-bold text-amber-600">
+                {avgCompletion !== null ? `${avgCompletion}%` : "—"}
+              </div>
+              <div className="text-sm text-gray-500 mt-1">Avg Completion</div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       {/* Sprint Overview + Category Breakdown */}
@@ -221,24 +282,28 @@ export default async function TeamDashboard({
                 <div className="flex items-center gap-2">
                   <h2 className="text-base font-semibold text-gray-900">{activeSprint.name}</h2>
                   <Badge variant="success">Active</Badge>
-                  <Link
-                    href={`/teams/${teamId}/sprints/${activeSprint.id}?editSprint=1`}
-                    className="text-gray-300 hover:text-gray-500 transition-colors"
-                    title="Edit sprint"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Link>
+                  {isAdmin && (
+                    <Link
+                      href={`/teams/${teamId}/sprints/${activeSprint.id}?editSprint=1`}
+                      className="text-gray-300 hover:text-gray-500 transition-colors"
+                      title="Edit sprint"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Link>
+                  )}
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {formatDate(activeSprint.startDate)} → {formatDate(activeSprint.endDate)}
                 </p>
               </div>
-              <Link href={`/teams/${teamId}/sprints/new`}>
-                <Button size="sm" variant="outline" className="gap-1.5">
-                  <Plus className="h-3.5 w-3.5" />
-                  New Sprint
-                </Button>
-              </Link>
+              {isAdmin && (
+                <Link href={`/teams/${teamId}/sprints/new`}>
+                  <Button size="sm" variant="outline" className="gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />
+                    New Sprint
+                  </Button>
+                </Link>
+              )}
             </div>
 
             {/* Progress */}
@@ -331,7 +396,7 @@ export default async function TeamDashboard({
                         const assignee = team.developers.find((d) => d.id === story.assigneeId);
                         const spHistory = JSON.parse(story.spChanges ?? "[]") as { from: number; to: number; at: string }[];
 
-                        if (editStory === story.id) {
+                        if (isAdmin && editStory === story.id) {
                           return (
                             <div key={story.id} className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
                               <form action={updateStoryAction} className="space-y-2">
@@ -390,7 +455,7 @@ export default async function TeamDashboard({
                                 </div>
                               )}
                             </div>
-                            {status !== "done" && (
+                            {isAdmin && status !== "done" && (
                               <form action={updateStatusAction} className="shrink-0">
                                 <input type="hidden" name="status" value={cfg.next} />
                                 <button type="submit" className="text-xs font-medium whitespace-nowrap px-2 py-1 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-colors">
@@ -398,14 +463,18 @@ export default async function TeamDashboard({
                                 </button>
                               </form>
                             )}
-                            <Link href={`${dashUrl}?editStory=${story.id}`} scroll={false} className="text-gray-300 hover:text-indigo-400 transition-colors shrink-0" title="Edit story">
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Link>
-                            <form action={removeStoryAction}>
-                              <button type="submit" className="text-gray-300 hover:text-red-400 transition-colors">
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </form>
+                            {isAdmin && (
+                              <>
+                                <Link href={`${dashUrl}?editStory=${story.id}`} scroll={false} className="text-gray-300 hover:text-indigo-400 transition-colors shrink-0" title="Edit story">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </Link>
+                                <form action={removeStoryAction}>
+                                  <button type="submit" className="text-gray-300 hover:text-red-400 transition-colors">
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </form>
+                              </>
+                            )}
                           </div>
                         );
                       })}
@@ -421,22 +490,57 @@ export default async function TeamDashboard({
         <div className="mb-8">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-base font-semibold text-gray-900">Active Sprint</h2>
-            <Link href={`/teams/${teamId}/sprints/new`}>
-              <Button size="sm" variant="outline" className="gap-1.5">
-                <Plus className="h-3.5 w-3.5" />
-                New Sprint
-              </Button>
-            </Link>
+            {isAdmin && (
+              <Link href={`/teams/${teamId}/sprints/new`}>
+                <Button size="sm" variant="outline" className="gap-1.5">
+                  <Plus className="h-3.5 w-3.5" />
+                  New Sprint
+                </Button>
+              </Link>
+            )}
           </div>
           <div className="text-center py-12 bg-white rounded-xl border border-dashed border-gray-300">
             <CalendarDays className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm mb-4">No active sprint. Create one to get started.</p>
-            <Link href={`/teams/${teamId}/sprints/new`}>
-              <Button size="sm">
-                <Plus className="h-4 w-4 mr-2" />
-                New Sprint
-              </Button>
-            </Link>
+            <p className="text-gray-500 text-sm mb-4">No active sprint.</p>
+            {isAdmin && (
+              <Link href={`/teams/${teamId}/sprints/new`}>
+                <Button size="sm">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Sprint
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Upcoming sprints */}
+      {plannedSprints.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-base font-semibold text-gray-900 mb-3">Upcoming Sprints</h2>
+          <div className="space-y-3">
+            {plannedSprints.map((sprint) => {
+              const planned = sprint.plannedPoints > 0 ? sprint.plannedPoints : sprint.userStories.reduce((a, s) => a + s.storyPoints, 0);
+              const cfg = statusConfig.planned;
+              return (
+                <Link key={sprint.id} href={`/teams/${teamId}/sprints/${sprint.id}`} className="block">
+                  <Card className="hover:shadow-sm transition-shadow cursor-pointer">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div>
+                        <span className="text-sm font-medium text-gray-900">{sprint.name}</span>
+                        <div className="text-xs text-gray-400 mt-0.5">
+                          {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-gray-500">{planned > 0 ? `${planned} SP planned` : "No stories yet"}</span>
+                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
@@ -445,14 +549,14 @@ export default async function TeamDashboard({
       {completedSprints.length > 0 && (
         <div>
           <h2 className="text-base font-semibold text-gray-900 mb-3">Recent Sprints</h2>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {completedSprints.slice(0, 3).map((sprint) => {
               const done = sprint.userStories
                 .filter((s) => s.status === "done")
                 .reduce((a, s) => a + s.storyPoints, 0);
               const cfg = statusConfig[sprint.status as keyof typeof statusConfig] ?? statusConfig.planned;
               return (
-                <Link key={sprint.id} href={`/teams/${teamId}/sprints/${sprint.id}`}>
+                <Link key={sprint.id} href={`/teams/${teamId}/sprints/${sprint.id}`} className="block">
                   <Card className="hover:shadow-sm transition-shadow cursor-pointer">
                     <CardContent className="p-4 flex items-center justify-between">
                       <div>

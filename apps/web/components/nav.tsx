@@ -1,6 +1,6 @@
 import { TeamSwitcher } from "@/components/team-switcher";
 import { apiFetch } from "@/lib/api";
-import { LayoutDashboard } from "lucide-react";
+import { LayoutDashboard, Settings2 } from "lucide-react";
 import Link from "next/link";
 
 export async function Nav() {
@@ -10,13 +10,16 @@ export async function Nav() {
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-14 items-center justify-between gap-4">
-          <Link href="/teams" className="flex items-center gap-2.5 font-semibold text-gray-900 hover:text-indigo-600 transition-colors">
+          <Link href="/admin" className="flex items-center gap-2.5 font-semibold text-gray-900 hover:text-indigo-600 transition-colors">
             <LayoutDashboard className="h-5 w-5 text-indigo-600" />
             <span>Scrumify</span>
           </Link>
 
           <div className="flex items-center gap-3">
             <TeamSwitcher teams={teams} />
+            <Link href="/admin" className="text-gray-400 hover:text-indigo-600 transition-colors" title="Admin">
+              <Settings2 className="h-5 w-5" />
+            </Link>
           </div>
         </div>
       </div>

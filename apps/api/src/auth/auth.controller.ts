@@ -1,0 +1,90 @@
+import { Controller, Post, Get, Body, Req, Res, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
+import { IsEmail, IsString, MinLength } from 'class-validator';
+import { Request, Response } from 'express';
+import { AuthService } from './auth.service';
+import { SessionGuard, SESSION_COOKIE } from './session.guard';
+import { CurrentUser } from './current-user.decorator';
+
+export const CTX_COOKIE = 'scrumify_ctx';
+
+const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
+
+const COOKIE_OPTS = {
+  httpOnly: true,
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: SESSION_MAX_AGE,
+};
+
+class AuthDto {
+  @IsEmail() email: string;
+  @IsString() @MinLength(8) password: string;
+}
+
+class AccessDto {
+  @IsString() token: string;
+}
+
+function setAuthCookies(
+  res: Response,
+  sessionId: string,
+  user: { role: string; assignedTeamId?: string | null },
+) {
+  res.cookie(SESSION_COOKIE, sessionId, COOKIE_OPTS);
+  res.cookie(CTX_COOKIE, `${user.role}:${user.assignedTeamId ?? ''}`, COOKIE_OPTS);
+}
+
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Post('register')
+  async register(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
+    const { session, user } = await this.authService.register(dto.email, dto.password);
+    setAuthCookies(res, session.id, user);
+    return { ok: true };
+  }
+
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
+    const { session, user } = await this.authService.login(dto.email, dto.password);
+    setAuthCookies(res, session.id, user);
+    return { ok: true };
+  }
+
+  @Post('access')
+  @HttpCode(HttpStatus.OK)
+  async access(@Body() dto: AccessDto, @Res({ passthrough: true }) res: Response) {
+    const { session, user } = await this.authService.loginWithToken(dto.token);
+    setAuthCookies(res, session.id, user);
+    return { assignedTeamId: user.assignedTeamId };
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(SessionGuard)
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const sessionId = req.cookies?.[SESSION_COOKIE];
+    if (sessionId) await this.authService.logout(sessionId);
+    res.clearCookie(SESSION_COOKIE, { path: '/' });
+    res.clearCookie(CTX_COOKIE, { path: '/' });
+  }
+
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SessionGuard)
+  refresh(
+    @CurrentUser() user: { id: string; role: string; assignedTeamId: string | null },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    res.cookie(CTX_COOKIE, `${user.role}:${user.assignedTeamId ?? ''}`, COOKIE_OPTS);
+    return { ok: true };
+  }
+
+  @Get('me')
+  @UseGuards(SessionGuard)
+  me(@CurrentUser() user: { id: string; email: string | null; name: string | null; role: string; assignedTeamId: string | null }) {
+    return { id: user.id, email: user.email, name: user.name, role: user.role, assignedTeamId: user.assignedTeamId };
+  }
+}

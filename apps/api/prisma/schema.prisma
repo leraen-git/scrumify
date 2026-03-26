@@ -7,6 +7,28 @@ datasource db {
   provider = "postgresql"
 }
 
+model User {
+  id             String    @id @default(cuid())
+  email          String?   @unique
+  name           String?
+  passwordHash   String?
+  role           String    @default("user")
+  accessToken    String?   @unique
+  assignedTeamId String?
+  assignedTeam   Team?     @relation("UserTeamAssignment", fields: [assignedTeamId], references: [id], onDelete: SetNull)
+  createdAt      DateTime  @default(now())
+  ownedTeams     Team[]    @relation("TeamOwner")
+  sessions       Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
 model Team {
   id             String      @id @default(cuid())
   name           String
@@ -14,6 +36,9 @@ model Team {
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
   categoryAllocations Json        @default("{}")
+  ownerId        String?
+  owner          User?       @relation("TeamOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  members        User[]      @relation("UserTeamAssignment")
   developers          Developer[]
   sprints             Sprint[]
 }

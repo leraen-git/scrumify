@@ -10,6 +10,7 @@ import { apiFetch } from "@/lib/api";
 import { countWorkingDays, formatDate, formatDateTime } from "@/lib/utils";
 import { ArrowLeft, CheckCircle2, Circle, Clock, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 
 async function updateSprint(sprintId: string, teamId: string, formData: FormData) {
@@ -151,6 +152,10 @@ export default async function SprintPage({
   const { teamId, sprintId } = await params;
   const { editSprint, editStory } = await searchParams;
 
+  const cookieStore = await cookies();
+  const ctx = cookieStore.get("scrumify_ctx")?.value ?? "";
+  const isAdmin = !ctx.startsWith("user:");
+
   interface SprintDetails {
     id: string;
     name: string;
@@ -198,7 +203,7 @@ export default async function SprintPage({
           Back to {sprint.team.name}
         </Link>
 
-        {editSprint ? (
+        {isAdmin && editSprint ? (
           <div className="bg-white rounded-xl border border-gray-200 shadow-xs p-5 mt-2">
             <h2 className="text-sm font-semibold text-gray-700 mb-4">Edit Sprint</h2>
             <form action={updateSprintAction} className="space-y-4">
@@ -224,23 +229,27 @@ export default async function SprintPage({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold text-gray-900">{sprint.name}</h1>
-                <Link
-                  href={`${boardUrl}?editSprint=1`}
-                  className="text-gray-300 hover:text-gray-500 transition-colors"
-                  title="Edit sprint"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Link>
+                {isAdmin && (
+                  <Link
+                    href={`${boardUrl}?editSprint=1`}
+                    className="text-gray-300 hover:text-gray-500 transition-colors"
+                    title="Edit sprint"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Link>
+                )}
               </div>
               <p className="text-sm text-gray-500 mt-1">
                 {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
               </p>
             </div>
-            <SprintStatusSelect
-              currentStatus={sprint.status}
-              options={sprintStatusOptions}
-              action={updateStatusAction}
-            />
+            {isAdmin && (
+              <SprintStatusSelect
+                currentStatus={sprint.status}
+                options={sprintStatusOptions}
+                action={updateStatusAction}
+              />
+            )}
           </div>
         )}
       </div>
@@ -432,7 +441,7 @@ export default async function SprintPage({
                   const spHistory = JSON.parse(story.spChanges ?? "[]") as { from: number; to: number; at: string }[];
                   const { devMs, testMs } = getStatusTimings(story.statusHistory);
 
-                  if (editStory === story.id) {
+                  if (isAdmin && editStory === story.id) {
                     return (
                       <div key={story.id} className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
                         <form action={updateStoryAction} className="space-y-2">
@@ -498,7 +507,10 @@ export default async function SprintPage({
                       </div>
 
                       {/* Category */}
-                      <StoryCategorySelect action={updateCategoryAction} defaultValue={story.category || "user_story"} />
+                      {isAdmin
+                        ? <StoryCategorySelect action={updateCategoryAction} defaultValue={story.category || "user_story"} />
+                        : <span className="text-xs text-gray-400 shrink-0">{CATEGORY_LABELS[story.category] ?? story.category}</span>
+                      }
 
                       {/* Assignee */}
                       {assignee && (
@@ -535,8 +547,8 @@ export default async function SprintPage({
                         </span>
                       )}
 
-                      {/* Move — only for todo and in_progress */}
-                      {status !== "done" && (
+                      {/* Move — only for todo and in_progress, admin only */}
+                      {isAdmin && status !== "done" && (
                         <form action={updateStatusAction} className="shrink-0">
                           <input type="hidden" name="status" value={cfg.next} />
                           <button type="submit" className="text-xs font-medium whitespace-nowrap px-2 py-1 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-colors">
@@ -545,20 +557,24 @@ export default async function SprintPage({
                         </form>
                       )}
 
-                      {/* Actions */}
-                      <Link
-                        href={`${boardUrl}?editStory=${story.id}`}
-                        scroll={false}
-                        className="text-gray-300 hover:text-indigo-400 transition-colors shrink-0"
-                        title="Edit story"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Link>
-                      <form action={removeStoryAction}>
-                        <button type="submit" className="text-gray-300 hover:text-red-400 transition-colors">
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </form>
+                      {/* Actions — admin only */}
+                      {isAdmin && (
+                        <>
+                          <Link
+                            href={`${boardUrl}?editStory=${story.id}`}
+                            scroll={false}
+                            className="text-gray-300 hover:text-indigo-400 transition-colors shrink-0"
+                            title="Edit story"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Link>
+                          <form action={removeStoryAction}>
+                            <button type="submit" className="text-gray-300 hover:text-red-400 transition-colors">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </form>
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -569,18 +585,14 @@ export default async function SprintPage({
       </div>
 
       {/* Import / Export */}
-      <div className="mb-4">
-        <StoriesImporter sprintId={sprintId} teamId={teamId} existingCount={sprint.userStories.length} />
-        {/* <a href={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/api/teams/${teamId}/sprints/${sprintId}/export`} download>
-          <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-1.5" />
-            Export CSV
-          </Button>
-        </a> */}
-      </div>
+      {isAdmin && (
+        <div className="mb-4">
+          <StoriesImporter sprintId={sprintId} teamId={teamId} existingCount={sprint.userStories.length} />
+        </div>
+      )}
 
       {/* Add story */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-xs p-5">
+      {isAdmin && <div className="bg-white rounded-xl border border-gray-200 shadow-xs p-5">
         <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
           <Plus className="h-4 w-4 text-indigo-500" />
           Add User Story
@@ -616,7 +628,7 @@ export default async function SprintPage({
           </select>
           <Button type="submit" className="flex-shrink-0">Add</Button>
         </form>
-      </div>
+      </div>}
     </div>
   );
 }

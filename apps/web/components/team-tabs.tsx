@@ -4,16 +4,17 @@ import { CalendarDays, LayoutDashboard, Settings, TrendingUp, Users } from "luci
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const tabs = [
-  { label: "Dashboard", icon: LayoutDashboard, href: (id: string) => `/teams/${id}`, exact: true },
-  { label: "Sprint", icon: CalendarDays, href: (id: string) => `/teams/${id}/sprints` },
-  { label: "Velocity", icon: TrendingUp, href: (id: string) => `/teams/${id}/velocity` },
-  { label: "Team", icon: Users, href: (id: string) => `/teams/${id}/team` },
-  { label: "Settings", icon: Settings, href: (id: string) => `/teams/${id}/settings` },
+const allTabs = [
+  { label: "Dashboard", icon: LayoutDashboard, href: (id: string) => `/teams/${id}`, exact: true, adminOnly: false },
+  { label: "Sprint", icon: CalendarDays, href: (id: string) => `/teams/${id}/sprints`, adminOnly: true },
+  { label: "Velocity", icon: TrendingUp, href: (id: string) => `/teams/${id}/velocity`, adminOnly: true },
+  { label: "Team", icon: Users, href: (id: string) => `/teams/${id}/team`, adminOnly: true },
+  { label: "Settings", icon: Settings, href: (id: string) => `/teams/${id}/settings`, adminOnly: true },
 ];
 
-export function TeamTabs({ teamId }: { teamId: string }) {
+export function TeamTabs({ teamId, isAdmin }: { teamId: string; isAdmin: boolean }) {
   const pathname = usePathname();
+  const tabs = isAdmin ? allTabs : allTabs.filter((t) => !t.adminOnly);
 
   return (
     <nav className="flex border-b border-gray-200">

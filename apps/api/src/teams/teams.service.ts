@@ -23,9 +23,7 @@ export class TeamsService {
         developers: { orderBy: { name: 'asc' }, include: { daysOff: true } },
         sprints: {
           orderBy: { startDate: 'desc' },
-          include: {
-            userStories: { orderBy: { createdAt: 'asc' } },
-          },
+          include: { userStories: { orderBy: { createdAt: 'asc' } } },
         },
       },
     });
@@ -66,13 +64,7 @@ export class TeamsService {
 
     await this.prisma.team.update({
       where: { id: teamId },
-      data: {
-        categoryAllocations: {
-          ...current,
-          tech_lead: techLeadPct,
-          user_story: userStoryPct,
-        },
-      },
+      data: { categoryAllocations: { ...current, tech_lead: techLeadPct, user_story: userStoryPct } },
     });
   }
 
@@ -89,12 +81,7 @@ export class TeamsService {
 
     const sprints = await this.prisma.sprint.findMany({ where: { teamId } });
     for (const sprint of sprints) {
-      const capacity = calcSprintCapacity(
-        team.developers,
-        team.sprintDuration,
-        sprint.startDate,
-        sprint.endDate,
-      );
+      const capacity = calcSprintCapacity(team.developers, team.sprintDuration, sprint.startDate, sprint.endDate);
       await this.prisma.sprint.update({ where: { id: sprint.id }, data: { capacity } });
     }
   }
