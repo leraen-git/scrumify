@@ -1,18 +1,18 @@
 import {
   Controller, Get, Post, Patch, Param, Body, Res,
 } from '@nestjs/common';
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
 import { Response } from 'express';
 import { SprintsService } from './sprints.service';
 
 class CreateSprintDto {
-  @IsString() @IsNotEmpty() name: string;
+  @IsString() @IsNotEmpty() @MaxLength(100) name: string;
   @IsString() @IsNotEmpty() startDate: string;
   @IsString() @IsNotEmpty() endDate: string;
 }
 
 class UpdateSprintDto {
-  @IsOptional() @IsString() @IsNotEmpty() name?: string;
+  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(100) name?: string;
   @IsOptional() @IsString() startDate?: string;
   @IsOptional() @IsString() endDate?: string;
   @IsOptional() @IsString() status?: string;
@@ -54,7 +54,8 @@ export class SprintsController {
   ) {
     const { csv, filename } = await this.sprints.exportCsv(teamId, sprintId);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    const encoded = encodeURIComponent(filename);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"; filename*=UTF-8''${encoded}`);
     res.send(csv);
   }
 }

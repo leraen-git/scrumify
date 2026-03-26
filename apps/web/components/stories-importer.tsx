@@ -117,6 +117,10 @@ export function StoriesImporter({ sprintId, teamId, existingCount }: Props) {
           setError("No rows found in the file.");
           return;
         }
+        if (rows.length > 500) {
+          setError(`File contains ${rows.length} rows — maximum is 500. Split the file and import in batches.`);
+          return;
+        }
         const keys = Object.keys(rows[0]);
         setHeaders(keys);
         setRawRows(rows);

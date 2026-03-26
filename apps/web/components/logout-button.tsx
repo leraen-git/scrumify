@@ -10,10 +10,8 @@ export function LogoutButton() {
 
   function handleLogout() {
     startTransition(async () => {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "https://localhost:3001";
-      await fetch(`${apiUrl}/api/auth/logout`, {
+      await fetch(`/api/auth/logout`, {
         method: "POST",
-        credentials: "include",
       });
       router.push("/login");
       router.refresh();

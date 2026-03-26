@@ -2,16 +2,16 @@ import {
   Controller, Get, Post, Patch, Delete,
   Param, Body, HttpCode, HttpStatus,
 } from '@nestjs/common';
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
 import { AdminService } from './admin.service';
 
 class CreateUserDto {
-  @IsString() @IsNotEmpty() name: string;
+  @IsString() @IsNotEmpty() @MaxLength(100) name: string;
   @IsString() @IsNotEmpty() teamId: string;
 }
 
 class UpdateUserDto {
-  @IsOptional() @IsString() @IsNotEmpty() name?: string;
+  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(100) name?: string;
   @IsOptional() @IsString() teamId?: string;
 }
 

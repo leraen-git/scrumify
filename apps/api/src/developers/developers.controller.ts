@@ -1,18 +1,18 @@
 import {
   Controller, Post, Patch, Delete, Param, Body, HttpCode, HttpStatus,
 } from '@nestjs/common';
-import { IsString, IsNotEmpty, IsInt, Min, IsOptional } from 'class-validator';
+import { IsString, IsNotEmpty, IsInt, Min, IsOptional, MaxLength } from 'class-validator';
 import { DevelopersService } from './developers.service';
 
 class CreateDeveloperDto {
-  @IsString() @IsNotEmpty() name: string;
-  @IsOptional() @IsString() role?: string;
+  @IsString() @IsNotEmpty() @MaxLength(100) name: string;
+  @IsOptional() @IsString() @MaxLength(100) role?: string;
   @IsInt() @Min(1) storyPointsPerSprint: number;
 }
 
 class UpdateDeveloperDto {
-  @IsOptional() @IsString() @IsNotEmpty() name?: string;
-  @IsOptional() @IsString() role?: string;
+  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(100) name?: string;
+  @IsOptional() @IsString() @MaxLength(100) role?: string;
   @IsOptional() @IsInt() @Min(1) storyPointsPerSprint?: number;
 }
 

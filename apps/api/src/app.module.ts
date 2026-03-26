@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { TeamsModule } from './teams/teams.module';
 import { DevelopersModule } from './developers/developers.module';
@@ -7,10 +9,12 @@ import { SprintsModule } from './sprints/sprints.module';
 import { StoriesModule } from './stories/stories.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
+import { SessionGuard } from './auth/session.guard';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     AuthModule,
     AdminModule,
@@ -18,6 +22,10 @@ import { AdminModule } from './admin/admin.module';
     DevelopersModule,
     SprintsModule,
     StoriesModule,
+  ],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: SessionGuard },
   ],
 })
 export class AppModule {}

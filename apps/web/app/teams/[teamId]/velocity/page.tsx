@@ -1,9 +1,16 @@
 import { CategoryDonutChart } from "@/components/category-donut-chart";
+import { RetroAdviceCard } from "@/components/retro-advice-card";
 import { VelocityChart } from "@/components/velocity-chart";
 import { apiFetch } from "@/lib/api";
 import { countWorkingDays, formatDate } from "@/lib/utils";
 import { TrendingUp } from "lucide-react";
 import { notFound } from "next/navigation";
+
+interface StatusEvent {
+  from: string;
+  to: string;
+  at: string;
+}
 
 interface SprintWithStories {
   id: string;
@@ -13,7 +20,26 @@ interface SprintWithStories {
   capacity: number;
   plannedPoints: number;
   status: string;
-  userStories: { status: string; storyPoints: number; category: string }[];
+  userStories: {
+    title: string;
+    status: string;
+    storyPoints: number;
+    category: string;
+    statusHistory?: string | null;
+  }[];
+}
+
+function calcStatusDurationHours(raw: string | null | undefined, fromStatus: string, toStatus: string): number | null {
+  const history: StatusEvent[] = JSON.parse(raw ?? "[]");
+  if (!Array.isArray(history) || history.length === 0) return null;
+  const entry = history.find((e) => e.from === fromStatus && e.to === toStatus);
+  if (!entry) return null;
+  const startEvent = history.find((e) => e.to === fromStatus);
+  if (!startEvent) return null;
+  const start = new Date(startEvent.at).getTime();
+  const end = new Date(entry.at).getTime();
+  if (isNaN(start) || isNaN(end)) return null;
+  return Math.round((end - start) / (1000 * 60 * 60));
 }
 
 export default async function VelocityPage({ params }: { params: Promise<{ teamId: string }> }) {
@@ -83,6 +109,27 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
     };
   });
 
+  // Build retro context from last 3 completed sprints (or fewer)
+  const retroSprints = completedSprints.slice(-3).map((sprint) => ({
+    name: sprint.name,
+    startDate: sprint.startDate,
+    endDate: sprint.endDate,
+    capacity: sprint.capacity,
+    plannedPoints: sprint.plannedPoints,
+    stories: sprint.userStories.map((s) => {
+      const devHours = calcStatusDurationHours(s.statusHistory, "in_progress", "testing") ?? undefined;
+      const testHours = calcStatusDurationHours(s.statusHistory, "testing", "done") ?? undefined;
+      return {
+        title: s.title,
+        storyPoints: s.storyPoints,
+        status: s.status,
+        category: s.category ?? "user_story",
+        devHours,
+        testHours,
+      };
+    }),
+  }));
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
@@ -128,6 +175,9 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
               );
             })()}
           </div>
+
+          <RetroAdviceCard sprints={retroSprints} />
+
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           <table className="w-full text-sm">
             <thead>

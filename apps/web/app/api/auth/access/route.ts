@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { setAuthCookies } from "@/lib/auth-cookies";
 
-const API_URL = process.env.API_INTERNAL_URL ?? "http://localhost:3001";
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60;
+const API_URL = process.env.API_INTERNAL_URL ?? "https://localhost:3001";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -18,23 +18,6 @@ export async function POST(req: NextRequest) {
   }
 
   const data = await apiRes.json();
-
-  // Re-set cookies on the web domain (:3000) so server components can read them
-  const apiSetCookie = apiRes.headers.getSetCookie?.() ?? [];
-  const res = NextResponse.json(data);
-
-  for (const raw of apiSetCookie) {
-    const [nameVal] = raw.split(";");
-    const [name, ...rest] = nameVal.split("=");
-    const value = rest.join("=");
-    res.cookies.set(name.trim(), value.trim(), {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/",
-      maxAge: COOKIE_MAX_AGE,
-      secure: true,
-    });
-  }
-
-  return res;
+  await setAuthCookies(apiRes.headers.getSetCookie?.() ?? []);
+  return NextResponse.json(data);
 }

@@ -13,11 +13,20 @@ async function bootstrap() {
       key: readFileSync(resolve(certsDir, 'localhost-key.pem')),
       cert: readFileSync(resolve(certsDir, 'localhost.pem')),
     },
+    bodyParser: true,
   });
+
+  // Limit JSON payload size to 1 MB
+  const bodyParser = require('body-parser');
+  app.use(bodyParser.json({ limit: '1mb' }));
+  app.use(bodyParser.urlencoded({ limit: '1mb', extended: true }));
 
   app.use(cookieParser());
   app.setGlobalPrefix('api');
-  app.enableCors({ origin: ['https://localhost:3000'], credentials: true });
+
+  const allowedOrigin = process.env.CORS_ORIGIN ?? 'https://localhost:3000';
+  app.enableCors({ origin: [allowedOrigin], credentials: true });
+
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
 
   const port = process.env.PORT ?? 3001;

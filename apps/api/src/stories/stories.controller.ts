@@ -3,20 +3,20 @@ import {
   Param, Body, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import {
-  IsString, IsNotEmpty, IsInt, Min, IsOptional, IsArray, ValidateNested, IsNumber,
+  IsString, IsNotEmpty, IsInt, Min, IsOptional, IsArray, ValidateNested, IsNumber, MaxLength, ArrayMaxSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { StoriesService } from './stories.service';
 
 class CreateStoryDto {
-  @IsString() @IsNotEmpty() title: string;
+  @IsString() @IsNotEmpty() @MaxLength(500) title: string;
   @IsInt() @Min(1) storyPoints: number;
   @IsOptional() @IsString() assigneeId?: string | null;
   @IsOptional() @IsString() category?: string;
 }
 
 class UpdateStoryDto {
-  @IsOptional() @IsString() @IsNotEmpty() title?: string;
+  @IsOptional() @IsString() @IsNotEmpty() @MaxLength(500) title?: string;
   @IsOptional() @IsInt() @Min(1) storyPoints?: number;
   @IsOptional() @IsString() assigneeId?: string | null;
   @IsOptional() @IsString() status?: string;
@@ -24,15 +24,16 @@ class UpdateStoryDto {
 }
 
 class ImportStoryDto {
-  @IsString() @IsNotEmpty() title: string;
+  @IsString() @IsNotEmpty() @MaxLength(500) title: string;
   @IsNumber() @Min(1) storyPoints: number;
   @IsString() status: string;
   @IsString() @IsNotEmpty() category: string;
-  @IsOptional() @IsString() assigneeName?: string;
+  @IsOptional() @IsString() @MaxLength(200) assigneeName?: string;
 }
 
 class ImportStoriesDto {
   @IsArray()
+  @ArrayMaxSize(500)
   @ValidateNested({ each: true })
   @Type(() => ImportStoryDto)
   stories: ImportStoryDto[];

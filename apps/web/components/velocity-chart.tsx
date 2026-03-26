@@ -105,11 +105,12 @@ export function VelocityChart({ data, avgVelocityPerDay }: Props) {
               const isActive = payload?.[0]?.payload?.active;
               return isActive ? `${label} (in progress)` : label;
             }}
-            formatter={(value: number, name: string) => {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            formatter={((value: number, name: string) => {
               if (name === "SP Planned") return [value, "SP Planned"];
               if (name === "SP Done") return [value, "SP Done"];
-              return [`${(value as number).toFixed(2)}`, "SP / dev·day"];
-            }}
+              return [`${value.toFixed(2)}`, "SP / dev·day"];
+            }) as any}
           />
           <Bar yAxisId="sp" dataKey="spPlanned" name="SP Planned" radius={[4, 4, 0, 0]} barSize={20}>
             {visibleData.map((entry, i) => (

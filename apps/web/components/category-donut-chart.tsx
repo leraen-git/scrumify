@@ -79,7 +79,8 @@ export function CategoryDonutChart({ sprints, colors: customColors }: Props) {
               ))}
             </Pie>
             <Tooltip
-              formatter={(value: number, name: string) => [`${value} SP`, name]}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              formatter={((value: number, name: string) => [`${value} SP`, name]) as any}
               contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #e5e7eb" }}
             />
           </PieChart>

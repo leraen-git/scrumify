@@ -165,7 +165,7 @@ export default async function SprintPage({
     capacity: number;
     plannedPoints: number;
     teamId: string;
-    team: { id: string; name: string; sprintDuration: number; developers: { id: string; name: string }[]; categoryAllocations: Record<string, number> };
+    team: { id: string; name: string; sprintDuration: number; developers: { id: string; name: string }[]; categoryAllocations: Record<string, string | number> };
     userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string | null; createdAt: string }[];
   }
 
@@ -332,11 +332,11 @@ export default async function SprintPage({
         {(() => {
           const alloc = sprint.team.categoryAllocations ?? {};
           const CATEGORIES = [
-            { key: "user_story", label: "User Story", color: (alloc["user_story_color"] as string) ?? "#6366f1" },
-            { key: "bug",        label: "Bug",         color: (alloc["bug_color"] as string) ?? "#ef4444" },
-            { key: "mco",        label: "MCO",         color: (alloc["mco_color"] as string) ?? "#f59e0b" },
-            { key: "best_effort",label: "Best-effort", color: (alloc["best_effort_color"] as string) ?? "#22c55e" },
-            { key: "tech_lead",  label: "Tech Lead",   color: (alloc["tech_lead_color"] as string) ?? "#a855f7" },
+            { key: "user_story", label: "User Story", color: (alloc["user_story_color"] as unknown as string) ?? "#6366f1" },
+            { key: "bug",        label: "Bug",         color: (alloc["bug_color"] as unknown as string) ?? "#ef4444" },
+            { key: "mco",        label: "MCO",         color: (alloc["mco_color"] as unknown as string) ?? "#f59e0b" },
+            { key: "best_effort",label: "Best-effort", color: (alloc["best_effort_color"] as unknown as string) ?? "#22c55e" },
+            { key: "tech_lead",  label: "Tech Lead",   color: (alloc["tech_lead_color"] as unknown as string) ?? "#a855f7" },
           ];
           const rows = CATEGORIES.map((c) => {
             const stories = sprint.userStories.filter((s) => s.category === c.key);

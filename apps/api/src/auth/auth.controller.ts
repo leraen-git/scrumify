@@ -1,9 +1,10 @@
 import { Controller, Post, Get, Body, Req, Res, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
-import { IsEmail, IsString, MinLength } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { SessionGuard, SESSION_COOKIE } from './session.guard';
 import { CurrentUser } from './current-user.decorator';
+import { Public } from './public.decorator';
 
 export const CTX_COOKIE = 'scrumify_ctx';
 
@@ -17,12 +18,12 @@ const COOKIE_OPTS = {
 };
 
 class AuthDto {
-  @IsEmail() email: string;
-  @IsString() @MinLength(8) password: string;
+  @IsEmail() @MaxLength(255) email: string;
+  @IsString() @MinLength(8) @MaxLength(128) password: string;
 }
 
 class AccessDto {
-  @IsString() token: string;
+  @IsString() @MaxLength(500) token: string;
 }
 
 function setAuthCookies(
@@ -38,6 +39,7 @@ function setAuthCookies(
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('register')
   async register(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
     const { session, user } = await this.authService.register(dto.email, dto.password);
@@ -45,6 +47,7 @@ export class AuthController {
     return { ok: true };
   }
 
+  @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
@@ -53,6 +56,7 @@ export class AuthController {
     return { ok: true };
   }
 
+  @Public()
   @Post('access')
   @HttpCode(HttpStatus.OK)
   async access(@Body() dto: AccessDto, @Res({ passthrough: true }) res: Response) {
