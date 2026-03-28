@@ -1,0 +1,41 @@
+ID,Title,Story Points,Status,Category,Assignee,Sprint,Priority
+WEB-001,Project setup — repository structure and toolchain configuration,5,done,tech_lead,Jordan,Sprint 1,1
+WEB-002,CI/CD pipeline and automated deployment to staging,5,done,tech_lead,Jordan,Sprint 1,2
+WEB-003,Design system — colour tokens typography and spacing scale,3,done,tech_lead,Jordan,Sprint 1,3
+WEB-004,Homepage — hero section and above-the-fold layout,5,done,user_story,Emma,Sprint 1,4
+WEB-005,Global navigation bar with responsive mobile menu,3,done,user_story,Liam,Sprint 1,5
+WEB-006,Footer — sitemap links social icons and newsletter signup,2,done,user_story,Emma,Sprint 1,6
+WEB-007,About Us page — company story values and timeline,3,done,user_story,Liam,Sprint 1,7
+WEB-008,Brand integration — fonts logo and icon set,2,done,best_effort,Emma,Sprint 1,8
+WEB-009,Services listing page — cards with icons and descriptions,5,done,user_story,Emma,Sprint 2,1
+WEB-010,Service detail page — template with rich text and CTA,3,done,user_story,Liam,Sprint 2,2
+WEB-011,Contact page — form with validation and confirmation email,5,done,user_story,Emma,Sprint 2,3
+WEB-012,Blog listing page — paginated article grid,3,done,user_story,Liam,Sprint 2,4
+WEB-013,Blog post detail page — reading layout with author bio,3,done,user_story,Emma,Sprint 2,5
+WEB-014,Fix: contact form fails silently on Safari 17,2,done,bug,Liam,Sprint 2,6
+WEB-015,SEO — meta tags sitemap.xml and Open Graph for all pages,3,done,mco,Jordan,Sprint 2,7
+WEB-016,Cookie consent banner with accept/reject and preferences,2,done,mco,Emma,Sprint 2,8
+WEB-017,CMS integration — connect headless CMS for blog and pages,8,done,tech_lead,Jordan,Sprint 3,1
+WEB-018,Site-wide search — indexed results with keyword highlighting,5,done,user_story,Liam,Sprint 3,2
+WEB-019,Client testimonials section with star ratings and carousel,3,in_progress,user_story,Emma,Sprint 3,3
+WEB-020,Team page — member cards with bios and photos,2,in_progress,user_story,Liam,Sprint 3,4
+WEB-021,Fix: hero images not loading on iOS Safari (WebP fallback),2,dev_done,bug,Emma,Sprint 3,5
+WEB-022,Portfolio — case studies listing and detail pages,5,todo,user_story,Emma,Sprint 3,6
+WEB-023,FAQ page — accordion with categories and anchor links,2,todo,user_story,Liam,Sprint 3,7
+WEB-024,Privacy policy and legal pages — GDPR compliant copy,2,todo,mco,Jordan,Sprint 3,8
+WEB-025,User account — registration login and password reset,8,todo,user_story,Liam,Sprint 4,1
+WEB-026,Client dashboard — project status documents and messages,8,todo,user_story,Emma,Sprint 4,2
+WEB-027,Online quote request form — multi-step with file upload,5,todo,user_story,Emma,Sprint 4,3
+WEB-028,Core Web Vitals optimisation — LCP CLS and INP targets,5,todo,tech_lead,Jordan,Sprint 4,4
+WEB-029,Live chat widget integration (Intercom),3,todo,best_effort,Liam,Sprint 4,5
+WEB-030,Fix: broken anchor links audit and resolution,1,todo,bug,Liam,Sprint 4,6
+WEB-031,Multi-language support — EN and FR (i18n routing),8,todo,user_story,Emma,Sprint 4,7
+WEB-032,Accessibility audit — WCAG 2.1 AA full pass and remediation,3,todo,mco,Jordan,Sprint 4,8
+WEB-033,E-commerce product catalogue with filters and sorting,13,todo,user_story,Emma,Backlog,1
+WEB-034,Shopping cart — add remove items and persistent session,8,todo,user_story,Liam,Backlog,2
+WEB-035,Checkout flow — address payment confirmation and receipt,13,todo,user_story,Emma,Backlog,3
+WEB-036,Payment gateway integration (Stripe),8,todo,mco,Jordan,Backlog,4
+WEB-037,Customer reviews and star ratings on product pages,5,todo,user_story,Liam,Backlog,5
+WEB-038,Email marketing integration — Mailchimp subscriber sync,3,todo,best_effort,Emma,Backlog,6
+WEB-039,Progressive Web App (PWA) — offline mode and install prompt,5,todo,tech_lead,Jordan,Backlog,7
+WEB-040,A/B testing framework — hero variants and CTA copy,3,todo,best_effort,Liam,Backlog,8
