@@ -16,7 +16,7 @@ export function proxy(req: NextRequest) {
   const isRSC = req.headers.has("rsc") || req.headers.has("next-router-prefetch");
   if (isRSC) return NextResponse.next();
 
-  const ctx = req.cookies.get("scrumify_ctx")?.value ?? "";
+  const ctx = req.cookies.get("argo_ctx")?.value ?? "";
 
   // No session → login
   if (!ctx) {

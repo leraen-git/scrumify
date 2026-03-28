@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# Scrumify — deploy updates to an already-configured server
+# A.R.G.O — deploy updates to an already-configured server
 #
 # Usage:
 #   bash deploy/update.sh <user@host>
@@ -24,30 +24,30 @@ upload() {
     --exclude node_modules --exclude .next --exclude dist \
     --exclude '*.pem' --exclude '*.key' --exclude certs/ \
     --exclude '.env' --exclude '.env.local' \
-    "$REPO_ROOT/" "$SSH_TARGET:/home/scrumify/app/"
+    "$REPO_ROOT/" "$SSH_TARGET:/home/argo/app/"
 }
 
 echo "▶ Uploading code…"
 upload
-remote chown -R scrumify:scrumify /home/scrumify/app
+remote chown -R argo:argo /home/argo/app
 
 echo "▶ Installing dependencies…"
-remote sudo -u scrumify bash -s << 'REMOTE'
-cd /home/scrumify/app && npm install --prefer-offline 2>&1 | tail -3
+remote sudo -u argo bash -s << 'REMOTE'
+cd /home/argo/app && npm install --prefer-offline 2>&1 | tail -3
 REMOTE
 
 echo "▶ Running DB migrations…"
-remote sudo -u scrumify bash -s << 'REMOTE'
-cd /home/scrumify/app/apps/api && npx prisma migrate deploy && npx prisma generate
+remote sudo -u argo bash -s << 'REMOTE'
+cd /home/argo/app/apps/api && npx prisma migrate deploy && npx prisma generate
 REMOTE
 
 echo "▶ Building…"
-remote sudo -u scrumify bash -s << 'REMOTE'
-cd /home/scrumify/app/apps/api && npm run build
-cd /home/scrumify/app/apps/web && npm run build
+remote sudo -u argo bash -s << 'REMOTE'
+cd /home/argo/app/apps/api && npm run build
+cd /home/argo/app/apps/web && npm run build
 REMOTE
 
 echo "▶ Restarting services…"
-remote sudo -u scrumify pm2 restart all
+remote sudo -u argo pm2 restart all
 
 echo "✓ Deployed. App is live."

@@ -7,7 +7,7 @@ import { cookies } from "next/headers";
 
 export async function Nav() {
   const cookieStore = await cookies();
-  const ctx = cookieStore.get("scrumify_ctx")?.value ?? "";
+  const ctx = cookieStore.get("argo_ctx")?.value ?? "";
   const isAdmin = ctx !== "" && !ctx.startsWith("user:");
 
   const teams = isAdmin
@@ -20,7 +20,7 @@ export async function Nav() {
         <div className="flex h-14 items-center justify-between gap-4">
           <Link href={isAdmin ? "/admin" : "/"} className="flex items-center gap-2.5 font-semibold text-gray-900 hover:text-indigo-600 transition-colors">
             <LayoutDashboard className="h-5 w-5 text-indigo-600" />
-            <span>Scrumify</span>
+            <span>A.R.G.O</span>
           </Link>
 
           <div className="flex items-center gap-3">

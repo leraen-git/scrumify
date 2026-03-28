@@ -1,4 +1,4 @@
-# Getting Started — Scrumify Monorepo
+# Getting Started — A.R.G.O Monorepo
 
 ## Prerequisites
 
@@ -39,7 +39,7 @@ Wait ~5 seconds for PostgreSQL to be ready before the next step.
 npm run db:migrate
 ```
 
-This runs `prisma migrate dev` inside `apps/api/`, creating all tables in the `scrumify` database.
+This runs `prisma migrate dev` inside `apps/api/`, creating all tables in the `argo` database.
 
 If prompted for a migration name, enter anything (e.g. `init`).
 
@@ -82,17 +82,17 @@ The root redirects you to your first team, or to the Teams page if none exist ye
 
 1. Open **http://localhost:5050** in your browser
 2. Log in with:
-   - **Email:** `admin@scrumify.local`
+   - **Email:** `admin@argo.local`
    - **Password:** `admin`
 3. In the left panel, right-click **Servers** → **Register** → **Server...**
 4. Fill in the form:
-   - **Name:** `Scrumify` (anything you like)
+   - **Name:** `A.R.G.O` (anything you like)
    - **Host:** `postgres` *(use `localhost` if connecting from outside Docker)*
    - **Port:** `5432`
-   - **Database:** `scrumify`
+   - **Database:** `argo`
    - **Username:** `postgres`
    - **Password:** `postgres`
-5. Click **Save** — you'll see all tables under `scrumify > Schemas > public > Tables`
+5. Click **Save** — you'll see all tables under `argo > Schemas > public > Tables`
 
 ---
 
@@ -115,7 +115,7 @@ docker compose down -v
 
 | File | Variable | Default |
 |---|---|---|
-| `apps/api/.env` | `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/scrumify` |
+| `apps/api/.env` | `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/argo` |
 | `apps/api/.env` | `PORT` | `3001` |
 | `apps/web/.env.local` | `NEXT_PUBLIC_API_URL` | `http://localhost:3001` |
 

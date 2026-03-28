@@ -4,7 +4,7 @@ import { AuthService } from './auth.service';
 import { Request } from 'express';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
-export const SESSION_COOKIE = 'scrumify_session';
+export const SESSION_COOKIE = 'argo_session';
 
 @Injectable()
 export class SessionGuard implements CanActivate {

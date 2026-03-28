@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.R.G.O — User Manual</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 11pt; color: #1a1a2e; background: #fff; line-height: 1.6; }
+
+  .cover { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: linear-gradient(135deg, #0ea5e9 0%, #4f46e5 100%); color: white; text-align: center; page-break-after: always; }
+  .cover .logo { font-size: 48pt; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; }
+  .cover .logo span { opacity: 0.7; }
+  .cover .subtitle { font-size: 18pt; font-weight: 300; opacity: 0.9; margin-bottom: 6px; }
+  .cover .role-badge { display: inline-block; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 20px; padding: 6px 20px; font-size: 13pt; font-weight: 600; margin-top: 16px; }
+  .cover .version { position: absolute; bottom: 40px; font-size: 9pt; opacity: 0.6; }
+
+  .toc-page { padding: 60px 70px; page-break-after: always; }
+  .toc-page h1 { font-size: 20pt; color: #0ea5e9; border-bottom: 2px solid #0ea5e9; padding-bottom: 10px; margin-bottom: 24px; }
+  .toc-entry { display: flex; align-items: baseline; margin-bottom: 8px; font-size: 10.5pt; }
+  .toc-entry.section { font-weight: 700; font-size: 11pt; color: #1a1a2e; margin-top: 14px; margin-bottom: 4px; }
+  .toc-entry.sub { padding-left: 20px; color: #555; font-size: 10pt; }
+  .toc-dots { flex: 1; border-bottom: 1px dotted #ccc; margin: 0 8px 4px; }
+  .toc-page-num { font-weight: 600; color: #0ea5e9; min-width: 20px; text-align: right; }
+
+  .page { padding: 55px 70px; page-break-after: always; }
+  .page:last-child { page-break-after: avoid; }
+
+  h1.chapter { font-size: 22pt; color: #0ea5e9; border-bottom: 3px solid #0ea5e9; padding-bottom: 10px; margin-bottom: 28px; }
+  h2 { font-size: 15pt; color: #1a1a2e; margin-top: 28px; margin-bottom: 12px; padding-left: 12px; border-left: 4px solid #0ea5e9; }
+  h3 { font-size: 12pt; color: #0ea5e9; margin-top: 20px; margin-bottom: 8px; }
+  p { margin-bottom: 10px; color: #333; }
+  ul, ol { margin: 8px 0 12px 24px; }
+  li { margin-bottom: 5px; color: #333; }
+  li strong { color: #1a1a2e; }
+
+  .note { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; font-size: 10pt; color: #1e40af; }
+  .tip { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; font-size: 10pt; color: #166534; }
+  .info { background: #f0f9ff; border-left: 4px solid #0ea5e9; padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; font-size: 10pt; color: #0c4a6e; }
+
+  .step-box { background: #f8f9ff; border: 1px solid #e0e8f0; border-radius: 8px; padding: 16px 20px; margin: 14px 0; }
+  .step { display: flex; align-items: flex-start; margin-bottom: 10px; }
+  .step-num { background: #0ea5e9; color: white; font-size: 9pt; font-weight: 700; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0; margin-top: 1px; }
+  .step-text { flex: 1; font-size: 10.5pt; color: #333; }
+
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 14px 0; }
+  .feature-card { background: #fafafa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 12px 14px; }
+  .feature-card h4 { font-size: 10.5pt; color: #0ea5e9; margin-bottom: 6px; font-weight: 700; }
+  .feature-card p { font-size: 9.5pt; margin: 0; color: #555; }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 8.5pt; font-weight: 600; }
+  .badge-green { background: #dcfce7; color: #166534; }
+  .badge-gray { background: #f3f4f6; color: #374151; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+  .badge-blue { background: #dbeafe; color: #1e40af; }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 10pt; }
+  th { background: #0ea5e9; color: white; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 7px 12px; border-bottom: 1px solid #e5e7eb; color: #333; }
+  tr:nth-child(even) td { background: #f9fafb; }
+
+  .kanban-cols { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+  .kanban-col { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; }
+  .kanban-col-header { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; margin-bottom: 8px; text-align: center; }
+  .kanban-story { background: white; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-size: 9pt; color: #374151; margin-bottom: 6px; }
+  .kanban-story .sp { float: right; font-weight: 700; color: #0ea5e9; }
+  .kanban-story .title { display: block; margin-top: 2px; color: #1e293b; }
+
+  .status-pill { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 12px; font-size: 9pt; font-weight: 600; }
+  .status-todo { background: #f1f5f9; color: #475569; }
+  .status-inprogress { background: #fef3c7; color: #92400e; }
+  .status-testing { background: #f3e8ff; color: #6b21a8; }
+  .status-done { background: #dcfce7; color: #166534; }
+</style>
+</head>
+<body>
+
+<!-- COVER PAGE -->
+<div class="cover">
+  <div class="logo">A.R.G.O<span>.</span></div>
+  <div class="subtitle">Agile Sprint Management Platform</div>
+  <div class="role-badge">User Manual</div>
+  <div class="version">Version 1.0 &nbsp;|&nbsp; 2026</div>
+</div>
+
+<!-- TABLE OF CONTENTS -->
+<div class="toc-page">
+  <h1>Table of Contents</h1>
+
+  <div class="toc-entry section"><span>1. Introduction</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-entry sub"><span>1.1 What is A.R.G.O?</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+  <div class="toc-entry sub"><span>1.2 Your Role as a User</span><span class="toc-dots"></span><span class="toc-page-num">3</span></div>
+
+  <div class="toc-entry section"><span>2. Accessing A.R.G.O</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-entry sub"><span>2.1 Using Your Access Link</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+  <div class="toc-entry sub"><span>2.2 Navigating the Interface</span><span class="toc-dots"></span><span class="toc-page-num">4</span></div>
+
+  <div class="toc-entry section"><span>3. Team Dashboard</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-entry sub"><span>3.1 Overview Metrics</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-entry sub"><span>3.2 Velocity &amp; Category Charts</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-entry sub"><span>3.3 Active Sprint Board</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
+  <div class="toc-entry sub"><span>3.4 Upcoming &amp; Completed Sprints</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+
+  <div class="toc-entry section"><span>4. Sprints</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-entry sub"><span>4.1 Viewing All Sprints</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-entry sub"><span>4.2 Sprint Board Details</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+
+  <div class="toc-entry section"><span>5. Velocity</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+  <div class="toc-entry sub"><span>5.1 Velocity Chart</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+  <div class="toc-entry sub"><span>5.2 AI Retrospective Advisor</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+
+  <div class="toc-entry section"><span>6. Team Members</span><span class="toc-dots"></span><span class="toc-page-num">10</span></div>
+</div>
+
+<!-- CHAPTER 1: INTRODUCTION -->
+<div class="page">
+  <h1 class="chapter">1. Introduction</h1>
+
+  <h2>1.1 What is A.R.G.O?</h2>
+  <p>A.R.G.O is an agile sprint management platform that helps your team plan, track, and improve its work using Scrum methodology. It provides a shared workspace where you can see sprint progress, monitor story completion, and track team performance over time.</p>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h4>Sprint Board</h4>
+      <p>Visual Kanban board showing all user stories and their current status in the active sprint.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Team Dashboard</h4>
+      <p>Key metrics and charts summarizing team velocity, completion rates, and category distribution.</p>
+    </div>
+    <div class="feature-card">
+      <h4>Sprint History</h4>
+      <p>Browse all past and current sprints, with detailed progress and completion data for each.</p>
+    </div>
+    <div class="feature-card">
+      <h4>AI Insights</h4>
+      <p>AI-powered retrospective analysis based on recent sprint data to help identify improvements.</p>
+    </div>
+  </div>
+
+  <h2>1.2 Your Role as a User</h2>
+  <p>As a regular user, you have <strong>read-only access</strong> to your team's workspace. This means you can view all information, charts, and sprint boards — but creating, editing, or deleting content is handled by your Scrum Master or Admin.</p>
+
+  <table>
+    <tr><th>You Can</th><th>Admin Only</th></tr>
+    <tr><td>View the active sprint board</td><td>Add, edit, or delete stories</td></tr>
+    <tr><td>Browse all sprints and their details</td><td>Create or manage sprints</td></tr>
+    <tr><td>View team metrics and velocity charts</td><td>Move stories between statuses</td></tr>
+    <tr><td>Run AI retrospective analysis</td><td>Manage developers and settings</td></tr>
+    <tr><td>View team roster and capacity</td><td>Add or remove team members</td></tr>
+  </table>
+
+  <div class="info">
+    <strong>Questions about your team's content?</strong> Contact your Scrum Master or Admin if you need stories added, sprint dates changed, or other modifications made to your workspace.
+  </div>
+</div>
+
+<!-- CHAPTER 2: ACCESSING A.R.G.O -->
+<div class="page">
+  <h1 class="chapter">2. Accessing A.R.G.O</h1>
+
+  <h2>2.1 Using Your Access Link</h2>
+  <p>You do not need a password to access A.R.G.O. Your Admin will provide you with a unique <strong>access link</strong> — a URL that logs you in automatically and takes you directly to your team workspace.</p>
+
+  <div class="step-box">
+    <div class="step"><div class="step-num">1</div><div class="step-text">Receive your access link from your Scrum Master or Admin (usually shared by email or messaging).</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-text">Click the link or paste it into your browser's address bar.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-text">You are automatically logged in and redirected to your team's Dashboard.</div></div>
+  </div>
+
+  <div class="tip">
+    <strong>Tip:</strong> Bookmark your team dashboard URL after your first login so you can return directly next time without needing the access link.
+  </div>
+
+  <div class="note">
+    <strong>Note:</strong> Your access link is unique to you. Do not share it with others, as it grants access to your team's workspace under your name. If you think your link has been compromised, ask your Admin to generate a new one.
+  </div>
+
+  <h2>2.2 Navigating the Interface</h2>
+  <p>After logging in, you will see the A.R.G.O navigation bar at the top of every page.</p>
+
+  <table>
+    <tr><th>Element</th><th>Description</th></tr>
+    <tr><td><strong>A.R.G.O logo</strong></td><td>Click to return to your team Dashboard</td></tr>
+    <tr><td><strong>Logout button</strong></td><td>Signs you out and clears your session</td></tr>
+  </table>
+
+  <h3>Team Workspace Tabs</h3>
+  <p>Your team workspace has one tab visible to you: <strong>Dashboard</strong>. From the Dashboard, you can navigate to all sections of your team's workspace including Sprints and Velocity.</p>
+
+  <div class="note">
+    <strong>Note:</strong> Some tabs (Team, Settings) are visible only to Administrators. Your view may differ from what your Admin sees.
+  </div>
+</div>
+
+<!-- CHAPTER 3: TEAM DASHBOARD -->
+<div class="page">
+  <h1 class="chapter">3. Team Dashboard</h1>
+
+  <p>The Team Dashboard is the first page you see after logging in. It provides a complete overview of your team's current and historical performance.</p>
+
+  <h2>3.1 Overview Metrics</h2>
+  <p>Five metric cards at the top of the dashboard summarize your team's performance:</p>
+
+  <table>
+    <tr><th>Metric</th><th>What It Means</th></tr>
+    <tr><td><strong>Total Sprints</strong></td><td>Total number of sprints your team has run</td></tr>
+    <tr><td><strong>Average Velocity</strong></td><td>Average story points delivered per completed sprint</td></tr>
+    <tr><td><strong>Avg Dev Time</strong></td><td>Average time a story spends being developed (In Progress status)</td></tr>
+    <tr><td><strong>Avg Test Time</strong></td><td>Average time a story spends in testing (Dev Done status)</td></tr>
+    <tr><td><strong>Avg Completion Rate</strong></td><td>On average, what percentage of planned capacity your team delivers</td></tr>
+  </table>
+
+  <h2>3.2 Velocity &amp; Category Charts</h2>
+  <p>Two charts help you visualize your team's performance over time:</p>
+
+  <h3>Velocity Chart</h3>
+  <p>A bar and line chart comparing <strong>SP Planned</strong> (what was planned) vs. <strong>SP Done</strong> (what was delivered) for each sprint. A dashed line shows your average velocity. Use the sprint toggle buttons above the chart to show or hide specific sprints.</p>
+
+  <h3>Category Donut Chart</h3>
+  <p>A pie chart showing how your team's story points are distributed across work types: User Story, Bug, MCO (operational tasks), Best-effort, and Tech Lead. This helps understand your team's workload balance.</p>
+
+  <h2>3.3 Active Sprint Board</h2>
+  <p>If your team has an active sprint running, a Kanban board is displayed showing all stories organized by their current status.</p>
+
+  <div class="kanban-cols">
+    <div class="kanban-col">
+      <div class="kanban-col-header">To Do</div>
+      <div class="kanban-story"><span class="sp">5</span><span class="title">User login page</span></div>
+      <div class="kanban-story"><span class="sp">3</span><span class="title">Fix bug #42</span></div>
+    </div>
+    <div class="kanban-col">
+      <div class="kanban-col-header">In Progress</div>
+      <div class="kanban-story"><span class="sp">8</span><span class="title">Dashboard charts</span></div>
+    </div>
+    <div class="kanban-col">
+      <div class="kanban-col-header">Dev Done</div>
+      <div class="kanban-story"><span class="sp">2</span><span class="title">Update header nav</span></div>
+    </div>
+    <div class="kanban-col">
+      <div class="kanban-col-header">Done</div>
+      <div class="kanban-story"><span class="sp">5</span><span class="title">API endpoints</span></div>
+      <div class="kanban-story"><span class="sp">3</span><span class="title">Database setup</span></div>
+    </div>
+  </div>
+
+  <h3>Story Card Information</h3>
+  <p>Each story card shows:</p>
+  <ul>
+    <li><strong>Story ID</strong> — a short identifier (first 8 characters)</li>
+    <li><strong>Story title</strong> — description of the work item</li>
+    <li><strong>Story points</strong> — estimated complexity/effort</li>
+    <li><strong>Assignee</strong> — the developer assigned to the story (if any)</li>
+    <li><strong>Category badge</strong> — type of work (User Story, Bug, MCO, etc.)</li>
+  </ul>
+
+  <div class="tip">
+    <strong>Tip:</strong> If a story's point value appears in red, it means the estimate was changed at some point. Hover over the number to see the full history of point changes.
+  </div>
+</div>
+
+<div class="page">
+  <h2>3.4 Upcoming &amp; Completed Sprints</h2>
+  <p>Below the active sprint board, the dashboard shows sprint cards in two sections:</p>
+
+  <h3>Upcoming Sprints</h3>
+  <p>Planned sprints that have not yet started. Each card shows:</p>
+  <ul>
+    <li>Sprint name and date range</li>
+    <li><span class="badge badge-gray">Planned</span> status badge</li>
+    <li>Story points currently planned</li>
+  </ul>
+
+  <h3>Completed Sprints</h3>
+  <p>Finished sprints. Each card shows:</p>
+  <ul>
+    <li>Sprint name and date range</li>
+    <li>Story points delivered out of capacity</li>
+    <li>Progress bar showing completion percentage</li>
+  </ul>
+
+  <p>Click any sprint card to open its full details page.</p>
+</div>
+
+<!-- CHAPTER 4: SPRINTS -->
+<div class="page">
+  <h1 class="chapter">4. Sprints</h1>
+
+  <h2>4.1 Viewing All Sprints</h2>
+  <p>Navigate to the <strong>Sprint</strong> section from the Dashboard's sprint cards or by navigating to your team's sprint list. This page shows all sprints organized by status.</p>
+
+  <h3>Active &amp; Planned Sprints</h3>
+  <p>Current and upcoming sprints are shown at the top. Each card displays sprint name, dates, capacity, story point progress, and time elapsed.</p>
+
+  <h3>Completed Sprints</h3>
+  <p>Past sprints are grouped in a collapsible section at the bottom. Click the <strong>Sprints Completed (N)</strong> label to expand and see them.</p>
+
+  <h3>Sprint Status Badges</h3>
+  <ul>
+    <li><span class="badge badge-green">Active</span> — sprint is currently in progress</li>
+    <li><span class="badge badge-gray">Planned</span> — sprint is scheduled but not yet started</li>
+    <li><span class="badge badge-gray">Completed</span> — sprint has ended</li>
+  </ul>
+
+  <h2>4.2 Sprint Board Details</h2>
+  <p>Click any sprint card to open its detailed board view.</p>
+
+  <h3>Sprint Statistics</h3>
+  <p>Five cards at the top of the sprint board show real-time statistics:</p>
+  <table>
+    <tr><th>Statistic</th><th>What It Shows</th></tr>
+    <tr><td><strong>SP Capacity</strong></td><td>Total story points the team can deliver in this sprint</td></tr>
+    <tr><td><strong>SP Planned</strong></td><td>Story points the team aimed to deliver</td></tr>
+    <tr><td><strong>SP Current</strong></td><td>Total story points across all stories in the sprint</td></tr>
+    <tr><td><strong>SP Done</strong></td><td>Story points of completed stories</td></tr>
+    <tr><td><strong>Completion %</strong></td><td>Percentage of capacity delivered</td></tr>
+  </table>
+
+  <h3>Progress Bars</h3>
+  <p>Two progress bars provide a visual summary:</p>
+  <ul>
+    <li><strong>Story Points progress</strong> — SP Done vs. SP Capacity. Green ≥80%, amber 50–79%, red &lt;50%.</li>
+    <li><strong>Time Elapsed</strong> — working days used vs. remaining. Red if &gt;80% of time is used (urgency indicator), amber if 50–79%, green if &lt;50%.</li>
+  </ul>
+
+  <div class="tip">
+    <strong>Tip:</strong> The progress bars use <em>working days</em> (Monday–Friday), not calendar days. Weekends are not counted.
+  </div>
+
+  <h3>Category Breakdown</h3>
+  <p>A table shows how stories are distributed across categories for this sprint, including SP done vs. total per category with color-coded completion percentages.</p>
+
+  <h3>Transition Times</h3>
+  <p>Two time metrics appear below the category breakdown:</p>
+  <ul>
+    <li><strong>Avg In Progress → Dev Done</strong> — average time your team spends developing stories</li>
+    <li><strong>Avg Testing → Done</strong> — average time your team spends testing stories</li>
+  </ul>
+  <p>These metrics help identify bottlenecks in the development process.</p>
+</div>
+
+<div class="page">
+  <h3>The Kanban Board</h3>
+  <p>The full Kanban board shows all sprint stories organized into four columns:</p>
+
+  <table>
+    <tr><th>Column</th><th>What It Means</th></tr>
+    <tr><td><span class="status-pill status-todo">○ To Do</span></td><td>Work that hasn't been started yet</td></tr>
+    <tr><td><span class="status-pill status-inprogress">⏱ In Progress</span></td><td>A developer is actively working on this</td></tr>
+    <tr><td><span class="status-pill status-testing">⚗ Dev Done / Testing</span></td><td>Development complete, awaiting testing or review</td></tr>
+    <tr><td><span class="status-pill status-done">✓ Done</span></td><td>Fully completed and accepted</td></tr>
+  </table>
+
+  <h3>Reading Story Cards</h3>
+  <p>In the detailed sprint board, story cards contain additional information compared to the dashboard view:</p>
+  <ul>
+    <li><strong>Story ID</strong> — unique short identifier</li>
+    <li><strong>Title</strong> — story description</li>
+    <li><strong>Category badge</strong> — type of work with custom color</li>
+    <li><strong>Story points</strong> — shown in red if ever modified (hover for history)</li>
+    <li><strong>Assignee</strong> — developer assigned to the story</li>
+    <li><strong>Dev time badge</strong> — shows time spent in development (visible once the story has moved past In Progress)</li>
+    <li><strong>Test time badge</strong> — shows time spent in testing (visible once the story has moved past Dev Done)</li>
+  </ul>
+
+  <div class="note">
+    <strong>Note:</strong> On the detailed sprint board, you will not see edit or move buttons — those are available to Admins only. Your view is read-only, showing all the same story information without modification controls.
+  </div>
+</div>
+
+<!-- CHAPTER 5: VELOCITY -->
+<div class="page">
+  <h1 class="chapter">5. Velocity</h1>
+
+  <p>The Velocity page provides in-depth analytics about your team's historical performance. Access it by navigating to your team and clicking the <strong>Velocity</strong> link from the Sprint section.</p>
+
+  <h2>5.1 Velocity Chart</h2>
+  <p>The velocity chart shows your team's performance over completed sprints:</p>
+  <ul>
+    <li><strong>Blue bars</strong> — story points planned for each sprint</li>
+    <li><strong>Green bars</strong> — story points actually delivered</li>
+    <li><strong>Blue line</strong> — velocity per developer-day (efficiency metric)</li>
+    <li><strong>Dashed line</strong> — your team's average velocity across all sprints</li>
+  </ul>
+
+  <p>Use the <strong>sprint toggle buttons</strong> above the chart to filter which sprints are included in the view. This is useful for excluding outlier sprints or focusing on recent performance.</p>
+
+  <h3>Category Distribution Chart</h3>
+  <p>A donut chart below the velocity chart shows the percentage breakdown of story types across all selected sprints. This helps you understand whether your team is spending more time on new features, bugs, operational work, or other categories.</p>
+
+  <h2>5.2 AI Retrospective Advisor</h2>
+  <p>A.R.G.O includes an AI-powered retrospective tool that analyzes your team's recent sprint data and provides actionable recommendations.</p>
+
+  <div class="step-box">
+    <div class="step"><div class="step-num">1</div><div class="step-text">On the Velocity page, find the <strong>AI Retrospective Advisor</strong> section (marked with a "Powered by Claude" badge).</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-text">Click <strong>Analyse</strong> to start the analysis. This may take a few seconds.</div></div>
+    <div class="step"><div class="step-num">3</div><div class="step-text">The AI will generate a formatted analysis with insights about your team's performance trends and recommendations.</div></div>
+    <div class="step"><div class="step-num">4</div><div class="step-text">Click <strong>Regenerate</strong> to run a fresh analysis at any time.</div></div>
+  </div>
+
+  <div class="tip">
+    <strong>Tip:</strong> The AI advisor analyzes the last 3 completed sprints. For the most useful insights, ensure your team has at least 2–3 completed sprints with accurate story point data.
+  </div>
+
+  <h3>Sprint Performance Table</h3>
+  <p>At the bottom of the Velocity page, a table lists all sprints with:</p>
+  <ul>
+    <li><strong>Sprint name</strong> and <strong>date range</strong></li>
+    <li><strong>Capacity</strong> — team story point capacity for that sprint</li>
+    <li><strong>Planned</strong> — story points targeted</li>
+    <li><strong>Delivered</strong> — actual story points completed</li>
+    <li><strong>Efficiency</strong> — delivered ÷ capacity (color-coded: green ≥80%, amber 50–79%, red &lt;50%)</li>
+  </ul>
+</div>
+
+<!-- CHAPTER 6: TEAM MEMBERS -->
+<div class="page">
+  <h1 class="chapter">6. Team Members</h1>
+
+  <p>The Team tab shows your team's composition, capacity, and availability. As a user, this is a read-only view.</p>
+
+  <h2>6.1 Team Statistics</h2>
+  <p>Three metric cards at the top of the Team page provide capacity information:</p>
+
+  <table>
+    <tr><th>Metric</th><th>Description</th></tr>
+    <tr><td><strong>Days worked this sprint</strong></td><td>Total working days × number of developers since the current sprint started</td></tr>
+    <tr><td><strong>Total days worked</strong></td><td>Total working days × number of developers since the team's first sprint</td></tr>
+    <tr><td><strong>Theoretical capacity</strong></td><td>Sum of all developer story point capacities per sprint</td></tr>
+  </table>
+
+  <h2>6.2 Days Off Calendar</h2>
+  <p>The calendar shows planned days off for all developers in the team. Each row represents one developer, and each column represents a day of the month.</p>
+
+  <ul>
+    <li><strong>½</strong> in a cell — the developer has a half-day off that day</li>
+    <li><strong>✕</strong> in a cell — the developer has a full day off that day</li>
+    <li><strong>Empty</strong> — the developer is working that day</li>
+    <li><strong>Gray columns</strong> — weekends (Saturday and Sunday)</li>
+  </ul>
+
+  <p>Use the <strong>Previous / Next</strong> navigation arrows to browse different months.</p>
+
+  <div class="note">
+    <strong>Note:</strong> As a regular user, you can view the calendar but cannot add or remove days off. Contact your Admin to update day off records.
+  </div>
+
+  <h2>6.3 Developer Roster</h2>
+  <p>Below the calendar, the developer list shows each team member with:</p>
+  <ul>
+    <li><strong>Name</strong> with avatar initial</li>
+    <li><strong>Role</strong> — Developer or Tech Lead</li>
+    <li><strong>Story point capacity</strong> — how many SP they can deliver per full sprint</li>
+  </ul>
+
+  <div class="tip">
+    <strong>Tip:</strong> The sum of all developers' story point capacities equals the team's <em>Theoretical Capacity</em> shown in the cards above. This is the maximum SP the team could deliver in a full, uninterrupted sprint.
+  </div>
+
+  <h2>6.4 Logging Out</h2>
+  <p>To log out of A.R.G.O, click the <strong>Logout</strong> button in the top navigation bar. Your session will be cleared and you will be redirected to the login page.</p>
+
+  <p>To access A.R.G.O again, use your access link provided by your Admin. If you have bookmarked your team dashboard, you may need to use the access link again after logging out.</p>
+
+  <div class="info">
+    <strong>Need help?</strong> If you experience any issues accessing your workspace, cannot find your access link, or have questions about your team's sprint data, please contact your Scrum Master or A.R.G.O Administrator.
+  </div>
+</div>
+
+</body>
+</html>

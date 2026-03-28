@@ -175,7 +175,7 @@ export default async function SprintPage({
   const { editSprint, editStory } = await searchParams;
 
   const cookieStore = await cookies();
-  const ctx = cookieStore.get("scrumify_ctx")?.value ?? "";
+  const ctx = cookieStore.get("argo_ctx")?.value ?? "";
   const isAdmin = !ctx.startsWith("user:");
 
   interface SprintDetails {

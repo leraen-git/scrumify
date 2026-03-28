@@ -8,8 +8,8 @@ export async function apiFetch<T = unknown>(path: string, init?: RequestInit): P
   if (typeof window === "undefined") {
     const { cookies } = await import("next/headers");
     const store = await cookies();
-    const session = store.get("scrumify_session");
-    if (session) cookieHeader = `scrumify_session=${session.value}`;
+    const session = store.get("argo_session");
+    if (session) cookieHeader = `argo_session=${session.value}`;
   }
 
   const res = await fetch(`${baseUrl}${path}`, {

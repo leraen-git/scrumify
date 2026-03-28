@@ -16,7 +16,7 @@ export default async function TeamLayout({
   if (!team) notFound();
 
   const cookieStore = await cookies();
-  const ctx = cookieStore.get("scrumify_ctx")?.value ?? "";
+  const ctx = cookieStore.get("argo_ctx")?.value ?? "";
   const isAdmin = !ctx.startsWith("user:");
 
   return (

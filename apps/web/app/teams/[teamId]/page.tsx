@@ -125,7 +125,7 @@ export default async function TeamDashboard({
   const { editStory } = await searchParams;
 
   const cookieStore = await cookies();
-  const ctx = cookieStore.get("scrumify_ctx")?.value ?? "";
+  const ctx = cookieStore.get("argo_ctx")?.value ?? "";
   const isAdmin = !ctx.startsWith("user:");
 
   interface ForecastResponse {

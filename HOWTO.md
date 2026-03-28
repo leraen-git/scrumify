@@ -1,13 +1,13 @@
-# Scrumify — How to Run and Use the App
+# A.R.G.O — How to Run and Use the App
 
-This guide explains how to install, start, and use Scrumify.
+This guide explains how to install, start, and use A.R.G.O.
 No technical background required — just follow the steps in order.
 
 ---
 
-## What is Scrumify?
+## What is A.R.G.O?
 
-Scrumify is a project management tool for software teams that use the Scrum method.
+A.R.G.O is a project management tool for software teams that use the Scrum method.
 It lets you:
 - Create and manage teams with developers and sprint capacity
 - Plan and run sprints on a 4-column Kanban board
@@ -54,8 +54,8 @@ It lets you:
    ```
    brew install postgresql@17
    brew services start postgresql@17
-   /usr/local/opt/postgresql@17/bin/createdb scrumify
-   /usr/local/opt/postgresql@17/bin/psql -d scrumify -c "CREATE USER postgres WITH SUPERUSER PASSWORD 'postgres';"
+   /usr/local/opt/postgresql@17/bin/createdb argo
+   /usr/local/opt/postgresql@17/bin/psql -d argo -c "CREATE USER postgres WITH SUPERUSER PASSWORD 'postgres';"
    ```
    The last command should print `CREATE ROLE`.
 
@@ -65,7 +65,7 @@ It lets you:
 
 ```
 cd ~/Desktop
-git clone https://github.com/leraen-git/scrumify.git scrum-app
+git clone https://github.com/leraen-git/argo.git scrum-app
 cd scrum-app
 ```
 
@@ -97,11 +97,11 @@ cd apps/api && npx ts-node -e "
 const {PrismaClient} = require('./generated/prisma');
 const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
-prisma.user.create({data:{email:'admin@scrumify.com',passwordHash:bcrypt.hashSync('changeme',10),role:'admin'}}).then(()=>console.log('Admin created')).finally(()=>prisma.\$disconnect());
+prisma.user.create({data:{email:'admin@argo.com',passwordHash:bcrypt.hashSync('changeme',10),role:'admin'}}).then(()=>console.log('Admin created')).finally(()=>prisma.\$disconnect());
 " && cd ../..
 ```
 
-This creates an admin account with email `admin@scrumify.com` and password `changeme`.
+This creates an admin account with email `admin@argo.com` and password `changeme`.
 Change the password after your first login.
 
 ---
@@ -345,7 +345,7 @@ Opens at `http://localhost:5555`. Browse and edit all tables.
 
 1. Download from https://tableplus.com
 2. New connection → PostgreSQL
-3. Host: `localhost`, Port: `5432`, Database: `scrumify`, User: `postgres`, Password: `postgres`
+3. Host: `localhost`, Port: `5432`, Database: `argo`, User: `postgres`, Password: `postgres`
 4. Click **Test** then **Connect**
 
 ---

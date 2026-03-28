@@ -6,7 +6,7 @@ import { SessionGuard, SESSION_COOKIE } from './session.guard';
 import { CurrentUser } from './current-user.decorator';
 import { Public } from './public.decorator';
 
-export const CTX_COOKIE = 'scrumify_ctx';
+export const CTX_COOKIE = 'argo_ctx';
 
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 

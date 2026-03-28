@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# Scrumify — one-shot server setup
+# A.R.G.O — one-shot server setup
 #
 # Usage:
 #   bash deploy/setup-server.sh <user@host> <domain> [db-password]
 #
 # Example:
-#   bash deploy/setup-server.sh root@1.2.3.4 scrumify.acme.com
+#   bash deploy/setup-server.sh root@1.2.3.4 argo.acme.com
 #
 # What it does (fully automated):
 #   1. Installs Node 22, PostgreSQL, nginx, PM2, Certbot
-#   2. Creates a 'scrumify' database + user
+#   2. Creates a 'argo' database + user
 #   3. Uploads this repo to the server
 #   4. Writes .env files
 #   5. Builds the app + runs DB migrations
@@ -45,10 +45,10 @@ upload() { rsync -az --delete \
   --exclude node_modules --exclude .next --exclude dist \
   --exclude '*.pem' --exclude '*.key' --exclude certs/ \
   --exclude '.env' --exclude '.env.local' \
-  "$REPO_ROOT/" "$SSH_TARGET:/home/scrumify/app/"; }
+  "$REPO_ROOT/" "$SSH_TARGET:/home/argo/app/"; }
 
 echo "══════════════════════════════════════════"
-echo " Scrumify server setup → $SSH_TARGET"
+echo " A.R.G.O server setup → $SSH_TARGET"
 echo " Domain : $DOMAIN"
 echo "══════════════════════════════════════════"
 
@@ -87,83 +87,83 @@ if ! command -v certbot &>/dev/null; then
 fi
 
 # Create app user/dir
-id scrumify &>/dev/null || useradd -m -s /bin/bash scrumify
-mkdir -p /home/scrumify/app
-chown -R scrumify:scrumify /home/scrumify
+id argo &>/dev/null || useradd -m -s /bin/bash argo
+mkdir -p /home/argo/app
+chown -R argo:argo /home/argo
 REMOTE
 
 # ── 2. database ──────────────────────────────────────────────────────────────
 echo "▶ Setting up PostgreSQL…"
 remote bash -s << REMOTE
 set -euo pipefail
-sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='scrumify'" | grep -q 1 \
-  || sudo -u postgres psql -c "CREATE USER scrumify WITH PASSWORD '${DB_PASS}';"
-sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='scrumify'" | grep -q 1 \
-  || sudo -u postgres psql -c "CREATE DATABASE scrumify OWNER scrumify;"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_roles WHERE rolname='argo'" | grep -q 1 \
+  || sudo -u postgres psql -c "CREATE USER argo WITH PASSWORD '${DB_PASS}';"
+sudo -u postgres psql -tc "SELECT 1 FROM pg_database WHERE datname='argo'" | grep -q 1 \
+  || sudo -u postgres psql -c "CREATE DATABASE argo OWNER argo;"
 REMOTE
 
 # ── 3. upload code ───────────────────────────────────────────────────────────
 echo "▶ Uploading code…"
 upload
-remote chown -R scrumify:scrumify /home/scrumify/app
+remote chown -R argo:argo /home/argo/app
 
 # ── 4. write env files ───────────────────────────────────────────────────────
 echo "▶ Writing environment files…"
 remote bash -s << REMOTE
 set -euo pipefail
-cat > /home/scrumify/app/apps/api/.env << 'EOF'
+cat > /home/argo/app/apps/api/.env << 'EOF'
 NODE_ENV=production
-DATABASE_URL=postgresql://scrumify:${DB_PASS}@localhost:5432/scrumify
+DATABASE_URL=postgresql://argo:${DB_PASS}@localhost:5432/argo
 PORT=3001
 CORS_ORIGIN=https://${DOMAIN}
 EOF
 
-cat > /home/scrumify/app/apps/web/.env.local << 'EOF'
+cat > /home/argo/app/apps/web/.env.local << 'EOF'
 NODE_ENV=production
 NEXT_PUBLIC_API_URL=https://${DOMAIN}
 API_INTERNAL_URL=http://localhost:3001
 EOF
 
-chown scrumify:scrumify \
-  /home/scrumify/app/apps/api/.env \
-  /home/scrumify/app/apps/web/.env.local
+chown argo:argo \
+  /home/argo/app/apps/api/.env \
+  /home/argo/app/apps/web/.env.local
 REMOTE
 
 # ── 5. install dependencies, migrate, build ──────────────────────────────────
 echo "▶ Installing dependencies…"
-remote sudo -u scrumify bash -s << 'REMOTE'
+remote sudo -u argo bash -s << 'REMOTE'
 set -euo pipefail
-cd /home/scrumify/app
+cd /home/argo/app
 npm install --prefer-offline 2>&1 | tail -5
 REMOTE
 
 echo "▶ Running DB migrations…"
-remote sudo -u scrumify bash -s << 'REMOTE'
+remote sudo -u argo bash -s << 'REMOTE'
 set -euo pipefail
-cd /home/scrumify/app/apps/api
+cd /home/argo/app/apps/api
 npx prisma migrate deploy
 npx prisma generate
 REMOTE
 
 echo "▶ Building API…"
-remote sudo -u scrumify bash -s << 'REMOTE'
+remote sudo -u argo bash -s << 'REMOTE'
 set -euo pipefail
-cd /home/scrumify/app/apps/api
+cd /home/argo/app/apps/api
 npm run build
 REMOTE
 
 echo "▶ Building web…"
-remote sudo -u scrumify bash -s << 'REMOTE'
+remote sudo -u argo bash -s << 'REMOTE'
 set -euo pipefail
-cd /home/scrumify/app/apps/web
+cd /home/argo/app/apps/web
 npm run build
 REMOTE
 
 # ── 6. PM2 ──────────────────────────────────────────────────────────────────
 echo "▶ Starting services with PM2…"
-remote sudo -u scrumify bash -s << 'REMOTE'
+remote sudo -u argo bash -s << 'REMOTE'
 set -euo pipefail
-cd /home/scrumify/app
+cd /home/argo/app
 pm2 delete all 2>/dev/null || true
 pm2 start deploy/ecosystem.config.js
 pm2 save
@@ -171,14 +171,14 @@ REMOTE
 
 # PM2 startup (run as root so it survives reboots)
 remote bash -s << 'REMOTE'
-env PATH=$PATH:/usr/bin pm2 startup systemd -u scrumify --hp /home/scrumify | tail -1 | bash
+env PATH=$PATH:/usr/bin pm2 startup systemd -u argo --hp /home/argo | tail -1 | bash
 REMOTE
 
 # ── 7. nginx ─────────────────────────────────────────────────────────────────
 echo "▶ Configuring nginx…"
 remote bash -s << REMOTE
 set -euo pipefail
-cat > /etc/nginx/sites-available/scrumify << 'NGINX'
+cat > /etc/nginx/sites-available/argo << 'NGINX'
 server {
     listen 80;
     server_name ${DOMAIN};
@@ -198,7 +198,7 @@ server {
 }
 NGINX
 
-ln -sf /etc/nginx/sites-available/scrumify /etc/nginx/sites-enabled/scrumify
+ln -sf /etc/nginx/sites-available/argo /etc/nginx/sites-enabled/argo
 rm -f /etc/nginx/sites-enabled/default
 nginx -t && systemctl reload nginx
 REMOTE

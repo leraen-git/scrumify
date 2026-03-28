@@ -18,7 +18,7 @@ export function LoginForm({ action }: Props) {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8 w-full max-w-sm">
         <h1 className="text-xl font-bold text-gray-900 mb-1">Sign in</h1>
-        <p className="text-sm text-gray-500 mb-6">Welcome back to Scrumify</p>
+        <p className="text-sm text-gray-500 mb-6">Welcome back to A.R.G.O</p>
         <form action={formAction} className="space-y-4">
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>

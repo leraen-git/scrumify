@@ -6,8 +6,8 @@ import "./globals.css";
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist-sans" });
 
 export const metadata: Metadata = {
-  title: "Scrumify",
-  description: "Agile sprint management for scrum masters",
+  title: "A.R.G.O",
+  description: "Agile Reporting & Goal Observer — sprint management for scrum teams",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
