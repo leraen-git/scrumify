@@ -73,10 +73,10 @@ const C = {
   pastDone:       "#6366f1", // indigo-500
   activePlanned:  "#fde68a", // amber-200  — warm "in-progress" signal
   activeDone:     "#f59e0b", // amber-400
-  futureCapacity: "#e5e7eb", // gray-200
-  forecast:       "#818cf8", // indigo-400
-  overflowCap:    "#fef3c7", // amber-100
-  overflowFcst:   "#fbbf24", // amber-400
+  futureCapacity: "#d1fae5", // emerald-100
+  forecast:       "#6ee7b7", // emerald-300
+  overflowCap:    "#d1fae5", // emerald-100 (same as future)
+  overflowFcst:   "#6ee7b7", // emerald-300 (same as future)
   separator:      "#d1d5db", // gray-300
   activeBg:       "#fffbeb", // amber-50  — column highlight
   activeBorder:   "#f59e0b", // amber-400
@@ -221,11 +221,11 @@ export function ForecastChart({ past, future, summary }: Props) {
         {hasFuture && (
           <>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded-sm bg-gray-200" />
+              <span className="inline-block w-3 h-3 rounded-sm bg-emerald-100 border border-emerald-200" />
               Capacity (forecast)
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded-sm bg-indigo-400" />
+              <span className="inline-block w-3 h-3 rounded-sm bg-emerald-300" />
               Forecast delivery
             </span>
           </>
@@ -282,7 +282,7 @@ export function ForecastChart({ past, future, summary }: Props) {
                     ? d.isOverflow ? C.overflowCap : C.futureCapacity
                     : d.isActive ? C.activePlanned : C.pastPlanned
                 }
-                stroke={d.isFuture && !d.isOverflow ? "#d1d5db" : "none"}
+                stroke={d.isFuture && !d.isOverflow ? "#a7f3d0" : "none"}
                 strokeWidth={1}
               />
             ))}
@@ -298,7 +298,7 @@ export function ForecastChart({ past, future, summary }: Props) {
                     ? d.isOverflow ? C.overflowFcst : C.forecast
                     : d.isActive ? C.activeDone : C.pastDone
                 }
-                fillOpacity={d.isFuture && !d.isOverflow ? 0.75 : 1}
+                fillOpacity={1}
               />
             ))}
           </Bar>
