@@ -238,7 +238,7 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
         </div>
       ) : (
         <div className="space-y-6">
-          <div className="flex gap-6 items-start">
+          <div className="flex flex-col lg:flex-row gap-6 items-start">
             <VelocityChart data={chartData} avgVelocityPerDay={avgVelocityPerDay} />
             {(() => {
               const donutSprints = [

@@ -55,7 +55,7 @@ export function VelocityChart({ data, avgVelocityPerDay }: Props) {
       : avgVelocityPerDay;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 w-1/2">
+    <div className="bg-white rounded-xl border border-gray-200 p-5 w-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-700">Sprint Overview</h3>
         <div className="flex items-center gap-4 text-xs text-gray-500">

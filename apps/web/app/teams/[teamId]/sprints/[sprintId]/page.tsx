@@ -356,7 +356,7 @@ export default async function SprintPage({
       })()}
 
       {/* Category breakdown + Transition times */}
-      <div className="flex gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row gap-4 mb-6">
         {(() => {
           const alloc = sprint.team.categoryAllocations ?? {};
           const CATEGORIES = [
@@ -373,7 +373,7 @@ export default async function SprintPage({
             return { ...c, sp, spDone, count: stories.length };
           }).filter((c) => c.sp > 0);
           return (
-            <div className="w-1/2 bg-white rounded-lg border border-gray-200 p-4">
+            <div className="w-full lg:w-1/2 bg-white rounded-lg border border-gray-200 p-4">
               <p className="text-sm font-medium text-gray-700 mb-3">Category Breakdown</p>
               {rows.length === 0 ? (
                 <p className="text-xs text-gray-400 italic">No stories with categories yet.</p>

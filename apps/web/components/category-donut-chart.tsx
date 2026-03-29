@@ -53,7 +53,7 @@ export function CategoryDonutChart({ sprints, colors: customColors }: Props) {
   if (data.length === 0) return null;
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 w-1/2">
+    <div className="bg-white rounded-xl border border-gray-200 p-5 w-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-700">Category Breakdown</h3>
         <span className="text-xs text-gray-400">

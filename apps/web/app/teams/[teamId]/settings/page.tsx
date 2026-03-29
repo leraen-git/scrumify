@@ -39,9 +39,9 @@ export default async function TeamSettingsPage({ params }: { params: Promise<{ t
     <div className="max-w-4xl">
 
       {/* General + Category Allocation side by side */}
-      <div className="flex gap-6 items-start mb-6">
+      <div className="flex flex-col lg:flex-row lg:gap-6 items-start mb-6">
         {/* Team Info */}
-        <section className="bg-white rounded-xl border border-gray-200 shadow-xs p-6 w-72 shrink-0">
+        <section className="bg-white rounded-xl border border-gray-200 shadow-xs p-6 w-full lg:w-72 lg:shrink-0 mb-6 lg:mb-0">
           <h2 className="text-base font-semibold text-gray-900 mb-4">General</h2>
           <form action={updateTeamWithId} className="space-y-4">
             <div className="space-y-1.5">
