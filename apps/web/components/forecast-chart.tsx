@@ -277,15 +277,6 @@ export function ForecastChart({ past, future, summary }: Props) {
             />
           )}
 
-          {firstFutureName && (
-            <ReferenceLine
-              x={firstFutureName}
-              stroke={C.futureSeparator}
-              strokeWidth={2}
-              strokeDasharray="4 2"
-              label={{ value: "forecast →", position: "insideTopRight", fontSize: 10, fill: "#9ca3af" }}
-            />
-          )}
 
           {firstOverflowName && (
             <ReferenceLine
