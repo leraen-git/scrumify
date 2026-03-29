@@ -17,6 +17,8 @@ export interface JiraCSVRow {
   'Epic Link'?: string;
   'Labels'?: string;
   'Description'?: string;
+  'Category'?: string;
+  'category'?: string;
   [key: string]: string | undefined;
 }
 
@@ -100,12 +102,24 @@ function mapPriority(jiraPriority: string): number {
   return 0;
 }
 
-function mapCategory(issueType: string): string {
-  const t = issueType.trim().toLowerCase();
-  if (t === 'bug') return 'bug';
-  if (t === 'task') return 'task';
-  if (t === 'epic') return 'user_story';
+const VALID_CATEGORIES = new Set(['user_story', 'bug', 'mco', 'best_effort', 'tech_lead']);
+
+function normalizeCategory(raw: string): string {
+  const s = raw.toLowerCase().trim().replace(/[\s-]+/g, '_');
+  if (VALID_CATEGORIES.has(s)) return s;
+  if (s === 'userstory' || s === 'us' || s === 'business' || s === 'user story' || s === 'story') return 'user_story';
+  if (s === 'defect' || s === 'fix' || s === 'bug') return 'bug';
+  if (s === 'tech' || s === 'techlead' || s === 'tl' || s === 'task') return 'tech_lead';
+  if (s === 'be' || s === 'bestef' || s === 'best effort') return 'best_effort';
   return 'user_story';
+}
+
+function mapCategory(row: JiraCSVRow): string {
+  // Prefer an explicit Category column if present
+  const categoryRaw = row['Category'] ?? row['category'] ?? '';
+  if (categoryRaw.trim()) return normalizeCategory(categoryRaw);
+  // Fall back to Issue Type mapping
+  return normalizeCategory(row['Issue Type'] ?? '');
 }
 
 function extractSprintNumber(name: string): number {
@@ -271,7 +285,7 @@ export function parseJiraCSV(file: File): Promise<ParsedImportData> {
               status: mapStatus(row['Status'] ?? ''),
               priority: mapPriority(row['Priority'] ?? ''),
               storyPoints: getStoryPoints(row),
-              category: mapCategory(row['Issue Type'] ?? ''),
+              category: mapCategory(row),
               sprintName: resolvedSprint,
               assigneeExternalId,
               labels: (row['Labels'] ?? '').split(',').map((l) => l.trim()).filter(Boolean),
