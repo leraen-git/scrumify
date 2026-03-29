@@ -171,9 +171,14 @@ export function ForecastChart({ past, future, summary }: Props) {
     })),
   ], [past, future]);
 
-  // Default page: show the tail (most recent past + all upcoming)
   const totalPages = Math.max(1, Math.ceil(allData.length / PAGE_SIZE));
-  const [page, setPage] = useState(() => totalPages - 1);
+
+  // Default page: show the page containing the active sprint, otherwise the last page
+  const [page, setPage] = useState(() => {
+    const activeIdx = allData.findIndex((d) => d.isActive);
+    if (activeIdx >= 0) return Math.floor(activeIdx / PAGE_SIZE);
+    return Math.max(0, totalPages - 1);
+  });
 
   if (allData.length === 0) return null;
 
