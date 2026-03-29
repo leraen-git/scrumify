@@ -22,6 +22,67 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
+// Compute Easter Sunday (Anonymous Gregorian algorithm)
+function easterSunday(year: number): Date {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31) - 1;
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month, day);
+}
+
+function addDays(date: Date, n: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function getFrenchHolidays(year: number): Set<string> {
+  const easter = easterSunday(year);
+  const fixed = [
+    `${year}-01-01`,
+    `${year}-05-01`,
+    `${year}-05-08`,
+    `${year}-07-14`,
+    `${year}-08-15`,
+    `${year}-11-01`,
+    `${year}-11-11`,
+    `${year}-12-25`,
+  ];
+  const mobile = [
+    toISO(addDays(easter, 1)),   // Lundi de Pâques
+    toISO(addDays(easter, 39)),  // Ascension
+    toISO(addDays(easter, 50)),  // Lundi de Pentecôte
+  ];
+  return new Set([...fixed, ...mobile]);
+}
+
+const FIXED_HOLIDAY_NAMES: Record<string, string> = {
+  "01-01": "Jour de l'An",
+  "05-01": "Fête du Travail",
+  "05-08": "Victoire 1945",
+  "07-14": "Fête Nationale",
+  "08-15": "Assomption",
+  "11-01": "Toussaint",
+  "11-11": "Armistice",
+  "12-25": "Noël",
+};
+
+function getHolidayLabel(iso: string, holidays: Set<string>): string | null {
+  if (!holidays.has(iso)) return null;
+  return FIXED_HOLIDAY_NAMES[iso.slice(5)] ?? "Férié";
+}
+
 function getAllDaysOfMonth(year: number, month: number): Date[] {
   const days: Date[] = [];
   const date = new Date(year, month, 1);
@@ -58,6 +119,7 @@ export function DaysOffCalendar({ developers, teamId }: Props) {
   });
 
   const days = getAllDaysOfMonth(year, month);
+  const holidays = getFrenchHolidays(year);
 
   function prevMonth() {
     if (month === 0) { setMonth(11); setYear((y) => y - 1); }
@@ -120,6 +182,10 @@ export function DaysOffCalendar({ developers, teamId }: Props) {
           <span className="inline-flex w-6 h-5 rounded items-center justify-center bg-red-100 text-red-600 font-semibold">✕</span>
           Full day
         </span>
+        <span className="flex items-center gap-1.5">
+          <span className="inline-flex w-6 h-5 rounded items-center justify-center bg-blue-100 text-blue-600 font-semibold">🇫🇷</span>
+          Jour férié
+        </span>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
@@ -133,14 +199,19 @@ export function DaysOffCalendar({ developers, teamId }: Props) {
                 Off
               </th>
               {days.map((d) => {
+                const iso = toISO(d);
                 const weekend = isWeekend(d);
-                const isToday = toISO(d) === toISO(today);
-                const dow = d.getDay() === 0 ? 6 : d.getDay() - 1; // Mon=0..Sun=6
+                const isToday = iso === toISO(today);
+                const holidayLabel = getHolidayLabel(iso, holidays);
+                const dow = d.getDay() === 0 ? 6 : d.getDay() - 1;
                 return (
                   <th
-                    key={toISO(d)}
+                    key={iso}
+                    title={holidayLabel ?? undefined}
                     className={`px-0 py-2 text-center font-medium border-b border-r border-gray-100 w-9 ${
-                      weekend
+                      holidayLabel
+                        ? "bg-blue-50 text-blue-400"
+                        : weekend
                         ? "bg-gray-50 text-gray-300"
                         : isToday
                         ? "bg-indigo-50 text-indigo-600"
@@ -148,7 +219,7 @@ export function DaysOffCalendar({ developers, teamId }: Props) {
                     }`}
                   >
                     <div className="text-[10px]">{DAY_LABELS[dow]}</div>
-                    <div className={`text-sm font-semibold ${weekend ? "text-gray-300" : isToday ? "text-indigo-600" : "text-gray-700"}`}>
+                    <div className={`text-sm font-semibold ${holidayLabel ? "text-blue-500" : weekend ? "text-gray-300" : isToday ? "text-indigo-600" : "text-gray-700"}`}>
                       {d.getDate()}
                     </div>
                   </th>
@@ -183,10 +254,17 @@ export function DaysOffCalendar({ developers, teamId }: Props) {
                     const iso = toISO(d);
                     const weekend = isWeekend(d);
                     const isToday = iso === toISO(today);
+                    const holidayLabel = getHolidayLabel(iso, holidays);
 
                     if (weekend) {
+                      return <td key={iso} className="border-r border-gray-100 bg-gray-50 w-9" />;
+                    }
+
+                    if (holidayLabel) {
                       return (
-                        <td key={iso} className="border-r border-gray-100 bg-gray-50 w-9" />
+                        <td key={iso} className="border-r border-gray-100 bg-blue-50 w-9 text-center" title={holidayLabel}>
+                          <span className="text-xs">🇫🇷</span>
+                        </td>
                       );
                     }
 
