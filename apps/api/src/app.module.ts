@@ -10,6 +10,7 @@ import { StoriesModule } from './stories/stories.module';
 import { ForecastModule } from './forecast/forecast.module';
 import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
+import { ImportModule } from './import/import.module';
 import { SessionGuard } from './auth/session.guard';
 
 @Module({
@@ -24,6 +25,7 @@ import { SessionGuard } from './auth/session.guard';
     SprintsModule,
     StoriesModule,
     ForecastModule,
+    ImportModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
