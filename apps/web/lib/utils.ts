@@ -29,6 +29,11 @@ export function formatDateTime(date: Date): string {
   });
 }
 
+export function sprintWeeks(startDate: string, endDate: string): number {
+  const ms = new Date(endDate).getTime() - new Date(startDate).getTime() + 86_400_000;
+  return Math.max(1, Math.round(ms / (7 * 86_400_000)));
+}
+
 export function countWorkingDays(startDate: string, endDate: string): number {
   let count = 0;
   const start = new Date(startDate);

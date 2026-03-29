@@ -5,7 +5,7 @@ import { RetroAdviceCard } from "@/components/retro-advice-card";
 import { StoriesImporter } from "@/components/stories-importer";
 import { VelocityChart } from "@/components/velocity-chart";
 import { apiFetch } from "@/lib/api";
-import { countWorkingDays, formatDate } from "@/lib/utils";
+import { countWorkingDays, formatDate, sprintWeeks } from "@/lib/utils";
 import { TrendingUp } from "lucide-react";
 import { notFound } from "next/navigation";
 
@@ -344,7 +344,7 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
                     >
                       <td className="px-4 py-3 font-medium text-gray-900">{sprint.name}</td>
                       <td className="px-4 py-3 text-gray-500">
-                        {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
+                        {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)} · {sprintWeeks(sprint.startDate, sprint.endDate)}w
                       </td>
                       <td className="px-4 py-3 text-right text-gray-600">{sprint.capacity}</td>
                       <td className="px-4 py-3 text-right text-gray-600">{sprint.planned}</td>

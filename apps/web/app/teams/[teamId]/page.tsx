@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { apiFetch } from "@/lib/api";
-import { countWorkingDays, formatDate, formatDateTime } from "@/lib/utils";
+import { countWorkingDays, formatDate, formatDateTime, sprintWeeks } from "@/lib/utils";
 import {
   CalendarDays,
   CheckCircle2,
@@ -366,7 +366,7 @@ export default async function TeamDashboard({
                   )}
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  {formatDate(activeSprint.startDate)} → {formatDate(activeSprint.endDate)}
+                  {formatDate(activeSprint.startDate)} → {formatDate(activeSprint.endDate)} · {sprintWeeks(activeSprint.startDate, activeSprint.endDate)}w
                 </p>
               </div>
               {isAdmin && (
@@ -650,7 +650,7 @@ export default async function TeamDashboard({
                         <Badge variant="secondary" className="shrink-0">Planned</Badge>
                       </div>
                       <div className="text-xs text-gray-400">
-                        {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
+                        {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)} · {sprintWeeks(sprint.startDate, sprint.endDate)}w
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
                         {planned > 0 ? `${planned} SP planned` : "No stories yet"}
@@ -684,7 +684,7 @@ export default async function TeamDashboard({
                         <Badge variant="outline" className="shrink-0">Done</Badge>
                       </div>
                       <div className="text-xs text-gray-400">
-                        {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
+                        {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)} · {sprintWeeks(sprint.startDate, sprint.endDate)}w
                       </div>
                       <div className="text-xs text-gray-500 mt-1">{done} SP delivered</div>
                     </CardContent>

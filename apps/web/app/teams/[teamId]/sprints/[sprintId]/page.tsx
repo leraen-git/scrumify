@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api";
-import { countWorkingDays, formatDate, formatDateTime } from "@/lib/utils";
+import { countWorkingDays, formatDate, formatDateTime, sprintWeeks } from "@/lib/utils";
 import { ArrowLeft, CheckCircle2, Circle, Clock, FlaskConical, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { cookies } from "next/headers";
@@ -268,7 +268,7 @@ export default async function SprintPage({
                 )}
               </div>
               <p className="text-sm text-gray-500 mt-1">
-                {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
+                {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)} · {sprintWeeks(sprint.startDate, sprint.endDate)}w
               </p>
             </div>
             {isAdmin && (

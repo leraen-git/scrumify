@@ -12,7 +12,7 @@ interface SprintWithStories {
   capacity: number;
   userStories: { status: string; storyPoints: number }[];
 }
-import { countWorkingDays, formatDate } from "@/lib/utils";
+import { countWorkingDays, formatDate, sprintWeeks } from "@/lib/utils";
 import { CalendarDays, Plus } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -45,7 +45,7 @@ function SprintCard({ sprint, teamId }: { sprint: SprintWithStories; teamId: str
             <div>
               <span className="font-medium text-gray-900">{sprint.name}</span>
               <div className="text-xs text-gray-400 mt-0.5">
-                {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)}
+                {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)} · {sprintWeeks(sprint.startDate, sprint.endDate)}w
               </div>
             </div>
             <Badge variant={cfg.variant}>{cfg.label}</Badge>
