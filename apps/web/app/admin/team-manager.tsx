@@ -4,7 +4,6 @@ import { useState, useTransition } from "react";
 import { Plus, Trash2, ExternalLink, Pencil, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import Link from "next/link";
 
 type Team = {
@@ -108,31 +107,7 @@ export function TeamManager({
   teams: Team[];
   onTeamsChange: (teams: Team[]) => void;
 }) {
-  const [pending, startTransition] = useTransition();
-  const [name, setName] = useState("");
-  const [duration, setDuration] = useState("2");
-  const [error, setError] = useState<string | null>(null);
-
-  function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    startTransition(async () => {
-      const res = await fetch(`${apiUrl}/api/teams`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, sprintDuration: Number(duration) }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data.message ?? "Failed to create team");
-        return;
-      }
-      const team = await res.json();
-      onTeamsChange([...teams, { ...team, _count: { developers: 0, sprints: 0 }, sprints: [] }]);
-      setName("");
-    });
-  }
+  const [, startTransition] = useTransition();
 
   async function handleSave(id: string, name: string, sprintDuration: number) {
     const res = await fetch(`${apiUrl}/api/teams/${id}`, {
@@ -155,31 +130,14 @@ export function TeamManager({
 
   return (
     <div className="space-y-4">
-      {/* Create form */}
-      <form onSubmit={handleCreate} className="flex flex-wrap gap-3 items-end">
-        <div className="flex-1 min-w-[160px] space-y-1">
-          <Label htmlFor="team-name" className="text-xs">Team name</Label>
-          <Input id="team-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My Team" required />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="sprint-duration" className="text-xs">Sprint duration</Label>
-          <select
-            id="sprint-duration"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            className="h-9 rounded-md border border-gray-200 bg-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {[1, 2, 3, 4].map((w) => (
-              <option key={w} value={w}>{w} week{w !== 1 ? "s" : ""}</option>
-            ))}
-          </select>
-        </div>
-        <Button type="submit" disabled={pending} className="gap-1.5">
-          <Plus className="h-4 w-4" />
-          Create
-        </Button>
-      </form>
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      <div className="flex justify-end">
+        <Link href="/teams/new">
+          <Button className="gap-1.5">
+            <Plus className="h-4 w-4" />
+            Create Team
+          </Button>
+        </Link>
+      </div>
 
       {/* Teams table */}
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
