@@ -212,7 +212,7 @@ export function DaysOffCalendar({ developers, teamId }: Props) {
                       holidayLabel
                         ? "bg-blue-50 text-blue-400"
                         : weekend
-                        ? "bg-gray-50 text-gray-300"
+                        ? "bg-gray-100 text-gray-300"
                         : isToday
                         ? "bg-indigo-50 text-indigo-600"
                         : "text-gray-400"
@@ -257,7 +257,7 @@ export function DaysOffCalendar({ developers, teamId }: Props) {
                     const holidayLabel = getHolidayLabel(iso, holidays);
 
                     if (weekend) {
-                      return <td key={iso} className="border-r border-gray-100 bg-gray-50 w-9" />;
+                      return <td key={iso} className="border-r border-gray-100 bg-gray-100 w-9" />;
                     }
 
                     if (holidayLabel) {
