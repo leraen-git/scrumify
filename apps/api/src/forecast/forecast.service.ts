@@ -215,46 +215,52 @@ export class ForecastService {
 
     // ── Overflow sprints (synthetic) — if backlog exceeds planned horizon ─
     if (remainingBacklogSP > 0 && plannedSprints.length > 0) {
-      // Estimate avg capacity from existing planned sprints
-      const avgCapacity =
-        plannedSprints.length > 0
-          ? Math.round(
-              future.reduce((a, s) => a + s.capacity, 0) / future.length,
-            )
+      const lastSprint = plannedSprints[plannedSprints.length - 1];
+      const sprintDurationDays = team.sprintDuration * 7; // calendar days
+
+      // Fallback avg capacity in case calcSprintCapacity returns 0
+      const avgCapacityFallback =
+        future.length > 0
+          ? Math.round(future.reduce((a, s) => a + s.capacity, 0) / future.length)
           : 0;
 
-      if (avgCapacity > 0) {
-        // Derive dates for synthetic sprints from last planned sprint
-        const lastSprint = plannedSprints[plannedSprints.length - 1];
-        const sprintDurationDays = team.sprintDuration * 7; // calendar days
-        let overflowIndex = 1;
+      let overflowIndex = 1;
 
-        while (remainingBacklogSP > 0 && overflowIndex <= MAX_OVERFLOW_SPRINTS) {
-          const prevEnd = future[future.length - 1]?.endDate ?? lastSprint.endDate;
-          const startDate = new Date(prevEnd);
-          startDate.setDate(startDate.getDate() + 1);
-          const endDate = new Date(startDate);
-          endDate.setDate(endDate.getDate() + sprintDurationDays - 1);
+      while (remainingBacklogSP > 0 && overflowIndex <= MAX_OVERFLOW_SPRINTS) {
+        const prevEnd = future[future.length - 1]?.endDate ?? lastSprint.endDate;
+        const startDate = new Date(prevEnd);
+        startDate.setDate(startDate.getDate() + 1);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + sprintDurationDays - 1);
 
-          const forecastDelivery = Math.round(avgCapacity * avgEfficiency);
-          const backlogFillSP = Math.min(forecastDelivery, remainingBacklogSP);
-          remainingBacklogSP = Math.max(0, remainingBacklogSP - backlogFillSP);
+        const startStr = startDate.toISOString().split('T')[0];
+        const endStr = endDate.toISOString().split('T')[0];
 
-          future.push({
-            name: `Overflow +${overflowIndex}`,
-            startDate: startDate.toISOString().split('T')[0],
-            endDate: endDate.toISOString().split('T')[0],
-            capacity: avgCapacity,
-            forecastDelivery,
-            assignedSP: 0,
-            backlogFillSP,
-            remainingCapacity: Math.max(0, avgCapacity - backlogFillSP),
-            isOverflow: true,
-            hasCapacityData: false,
-          });
+        // Use actual developer capacity for the synthetic sprint dates
+        const capacity =
+          calcSprintCapacity(team.developers, team.sprintDuration, startStr, endStr) ||
+          avgCapacityFallback;
 
-          overflowIndex++;
-        }
+        if (capacity === 0) break;
+
+        const forecastDelivery = Math.round(capacity * avgEfficiency);
+        const backlogFillSP = Math.min(forecastDelivery, remainingBacklogSP);
+        remainingBacklogSP = Math.max(0, remainingBacklogSP - backlogFillSP);
+
+        future.push({
+          name: `Overflow +${overflowIndex}`,
+          startDate: startStr,
+          endDate: endStr,
+          capacity,
+          forecastDelivery,
+          assignedSP: 0,
+          backlogFillSP,
+          remainingCapacity: Math.max(0, capacity - backlogFillSP),
+          isOverflow: true,
+          hasCapacityData: true,
+        });
+
+        overflowIndex++;
       }
     }
 

@@ -1,5 +1,7 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from "react";
 import {
   Bar,
   CartesianGrid,
@@ -51,13 +53,11 @@ interface Props {
 }
 
 // ── Unified chart point ────────────────────────────────────────────────────
-// Two bars per sprint: barA = "planned / capacity", barB = "delivered / forecast"
 
 interface ChartPoint {
   name: string;
-  barA: number;   // past → spPlanned | future → capacity
-  barB: number;   // past → spDone    | future → forecastDelivery
-  // tooltip extras
+  barA: number;
+  barB: number;
   isFuture: boolean;
   isActive: boolean;
   isOverflow: boolean;
@@ -69,17 +69,17 @@ interface ChartPoint {
 // ── Colours ────────────────────────────────────────────────────────────────
 
 const C = {
-  pastPlanned:    "#c7d2fe", // indigo-200
-  pastDone:       "#6366f1", // indigo-500
-  activePlanned:  "#fde68a", // amber-200  — warm "in-progress" signal
-  activeDone:     "#f59e0b", // amber-400
-  futureCapacity: "#d1fae5", // emerald-100
-  forecast:       "#6ee7b7", // emerald-300
-  overflowCap:    "#d1fae5", // emerald-100 (same as future)
-  overflowFcst:   "#6ee7b7", // emerald-300 (same as future)
-  separator:      "#d1d5db", // gray-300
-  activeBg:       "#fffbeb", // amber-50  — column highlight
-  activeBorder:   "#f59e0b", // amber-400
+  pastPlanned:    "#c7d2fe",
+  pastDone:       "#6366f1",
+  activePlanned:  "#fde68a",
+  activeDone:     "#f59e0b",
+  futureCapacity: "#d1fae5",
+  forecast:       "#6ee7b7",
+  overflowCap:    "#fef3c7", // amber-100
+  overflowFcst:   "#fbbf24", // amber-400
+  separator:      "#d1d5db",
+  activeBg:       "#fffbeb",
+  activeBorder:   "#f59e0b",
 };
 
 // ── Tooltip ────────────────────────────────────────────────────────────────
@@ -110,8 +110,8 @@ function ForecastTooltip({ active, payload, label }: any) {
         </>
       ) : (
         <>
-          <Row label="Capacity"          value={d.barA} color={C.futureCapacity} />
-          <Row label="Forecast delivery" value={d.barB} color={C.forecast} bold />
+          <Row label="Capacity"          value={d.barA} color={d.isOverflow ? C.overflowCap : C.futureCapacity} />
+          <Row label="Forecast delivery" value={d.barB} color={d.isOverflow ? C.overflowFcst : C.forecast} bold />
           {d.assignedSP > 0 && (
             <Row label="  of which assigned" value={d.assignedSP} color={C.forecast} />
           )}
@@ -138,8 +138,33 @@ function Row({ label, value, color, bold }: { label: string; value: number; colo
 
 // ── Component ──────────────────────────────────────────────────────────────
 
+const OVERFLOW_PAGE_SIZE = 2;
+
 export function ForecastChart({ past, future, summary }: Props) {
+  const [overflowPage, setOverflowPage] = useState(0);
+
   if (past.length === 0 && future.length === 0) return null;
+
+  const regularFuture = future.filter((s) => !s.isOverflow);
+  const overflowFuture = future.filter((s) => s.isOverflow);
+
+  const totalOverflowPages = Math.ceil(overflowFuture.length / OVERFLOW_PAGE_SIZE);
+  const visibleOverflow = overflowFuture.slice(
+    overflowPage * OVERFLOW_PAGE_SIZE,
+    overflowPage * OVERFLOW_PAGE_SIZE + OVERFLOW_PAGE_SIZE,
+  );
+
+  const toChartPoint = (s: FutureSprintPoint): ChartPoint => ({
+    name: s.name,
+    barA: s.capacity,
+    barB: s.forecastDelivery,
+    isFuture: true,
+    isActive: false,
+    isOverflow: s.isOverflow,
+    hasCapacityData: s.hasCapacityData,
+    assignedSP: s.assignedSP,
+    backlogFillSP: s.backlogFillSP,
+  });
 
   const chartData: ChartPoint[] = [
     ...past.map((s) => ({
@@ -153,22 +178,14 @@ export function ForecastChart({ past, future, summary }: Props) {
       assignedSP: 0,
       backlogFillSP: 0,
     })),
-    ...future.map((s) => ({
-      name: s.name,
-      barA: s.capacity,
-      barB: s.forecastDelivery,
-      isFuture: true,
-      isActive: false,
-      isOverflow: s.isOverflow,
-      hasCapacityData: s.hasCapacityData,
-      assignedSP: s.assignedSP,
-      backlogFillSP: s.backlogFillSP,
-    })),
+    ...regularFuture.map(toChartPoint),
+    ...visibleOverflow.map(toChartPoint),
   ];
 
-  const separatorName = future[0]?.name ?? null;
+  const separatorName = regularFuture[0]?.name ?? (visibleOverflow[0]?.name ?? null);
   const hasFuture = future.length > 0;
   const activeName = past.find((s) => s.isActive)?.name ?? null;
+  const firstOverflowName = visibleOverflow[0]?.name ?? null;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 w-full">
@@ -230,6 +247,18 @@ export function ForecastChart({ past, future, summary }: Props) {
             </span>
           </>
         )}
+        {overflowFuture.length > 0 && (
+          <>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded-sm bg-amber-100 border border-amber-200" />
+              Overflow capacity
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="inline-block w-3 h-3 rounded-sm bg-amber-400" />
+              Overflow forecast
+            </span>
+          </>
+        )}
       </div>
 
       <ResponsiveContainer width="100%" height={300}>
@@ -248,7 +277,6 @@ export function ForecastChart({ past, future, summary }: Props) {
             label={{ value: "SP", angle: -90, position: "insideLeft", offset: 10, style: { fontSize: 11, fill: "#9ca3af" } }}
           />
 
-          {/* Active sprint background highlight — rendered before bars so it sits behind */}
           {activeName && (
             <ReferenceArea
               x1={activeName}
@@ -272,7 +300,17 @@ export function ForecastChart({ past, future, summary }: Props) {
             />
           )}
 
-          {/* Left bar: planned (past) / capacity (future) */}
+          {/* Overflow separator */}
+          {firstOverflowName && (
+            <ReferenceLine
+              x={firstOverflowName}
+              stroke="#fcd34d"
+              strokeWidth={2}
+              strokeDasharray="4 2"
+              label={{ value: "overflow →", position: "insideTopRight", fontSize: 10, fill: "#f59e0b" }}
+            />
+          )}
+
           <Bar dataKey="barA" name="Planned / Capacity" radius={[4, 4, 0, 0]} barSize={20}>
             {chartData.map((d, i) => (
               <Cell
@@ -282,13 +320,12 @@ export function ForecastChart({ past, future, summary }: Props) {
                     ? d.isOverflow ? C.overflowCap : C.futureCapacity
                     : d.isActive ? C.activePlanned : C.pastPlanned
                 }
-                stroke={d.isFuture && !d.isOverflow ? "#a7f3d0" : "none"}
+                stroke={d.isFuture && !d.isOverflow ? "#a7f3d0" : d.isOverflow ? "#fcd34d" : "none"}
                 strokeWidth={1}
               />
             ))}
           </Bar>
 
-          {/* Right bar: delivered (past) / forecast (future) */}
           <Bar dataKey="barB" name="Delivered / Forecast" radius={[4, 4, 0, 0]} barSize={20}>
             {chartData.map((d, i) => (
               <Cell
@@ -306,6 +343,34 @@ export function ForecastChart({ past, future, summary }: Props) {
           <Tooltip content={<ForecastTooltip />} cursor={{ fill: "#f9fafb" }} />
         </ComposedChart>
       </ResponsiveContainer>
+
+      {/* Overflow pagination */}
+      {overflowFuture.length > 0 && (
+        <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
+          <span className="text-xs text-amber-600 font-medium mr-auto">
+            Overflow sprints ({overflowFuture.length} needed to clear backlog)
+          </span>
+          <span className="text-xs text-gray-400">
+            {overflowPage + 1} / {totalOverflowPages}
+          </span>
+          <button
+            onClick={() => setOverflowPage((p) => Math.max(0, p - 1))}
+            disabled={overflowPage === 0}
+            className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Previous overflow sprints"
+          >
+            <ChevronLeft className="h-4 w-4 text-gray-500" />
+          </button>
+          <button
+            onClick={() => setOverflowPage((p) => Math.min(totalOverflowPages - 1, p + 1))}
+            disabled={overflowPage >= totalOverflowPages - 1}
+            className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            aria-label="Next overflow sprints"
+          >
+            <ChevronRight className="h-4 w-4 text-gray-500" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -204,8 +204,9 @@ export default async function TeamDashboard({
       ? Math.round(
           completedSprints.reduce((a, s) => {
             const done = s.userStories.filter((u) => u.status === "done").reduce((b, u) => b + u.storyPoints, 0);
-            const capacity = s.capacity > 0 ? s.capacity : s.userStories.reduce((b, u) => b + u.storyPoints, 0);
-            return a + (capacity > 0 ? done / capacity : 0);
+            const total = s.userStories.reduce((b, u) => b + u.storyPoints, 0);
+            const denominator = s.capacity > 0 ? s.capacity : total;
+            return a + (denominator > 0 ? Math.min(1, done / denominator) : 0);
           }, 0) / completedSprints.length * 100
         )
       : null;
