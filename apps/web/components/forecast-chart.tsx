@@ -112,8 +112,7 @@ function ForecastTooltip({ active, payload, label }: any) {
         </>
       ) : (
         <>
-          <Row label="Capacity"          value={d.barA} color={d.isOverflow ? C.overflowCap : C.futureCapacity} />
-          <Row label="Forecast delivery" value={d.barB} color={d.isOverflow ? C.overflowFcst : C.forecast} bold />
+          <Row label="Capacity" value={d.barA} color={d.isOverflow ? C.overflowCap : C.futureCapacity} bold />
           {d.assignedSP > 0 && (
             <Row label="  assigned" value={d.assignedSP} color={C.forecast} />
           )}
@@ -161,7 +160,7 @@ export function ForecastChart({ past, future, summary }: Props) {
     ...future.map((s) => ({
       name: s.name,
       barA: s.capacity,
-      barB: s.forecastDelivery,
+      barB: 0,
       isFuture: true,
       isActive: false,
       isOverflow: s.isOverflow,
@@ -242,16 +241,10 @@ export function ForecastChart({ past, future, summary }: Props) {
           </span>
         )}
         {hasFuture && (
-          <>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded-sm bg-gray-200 border border-gray-300" />
-              Capacity (forecast)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded-sm bg-gray-400" />
-              Forecast delivery
-            </span>
-          </>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-sm bg-gray-200 border border-gray-300" />
+            Capacity (forecast)
+          </span>
         )}
       </div>
 
