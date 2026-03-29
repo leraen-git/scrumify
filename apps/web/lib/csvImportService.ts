@@ -19,6 +19,8 @@ export interface JiraCSVRow {
   'Description'?: string;
   'Category'?: string;
   'category'?: string;
+  'Type'?: string;
+  'type'?: string;
   [key: string]: string | undefined;
 }
 
@@ -115,11 +117,24 @@ function normalizeCategory(raw: string): string {
 }
 
 function mapCategory(row: JiraCSVRow): string {
-  // Prefer an explicit Category column if present
-  const categoryRaw = row['Category'] ?? row['category'] ?? '';
-  if (categoryRaw.trim()) return normalizeCategory(categoryRaw);
-  // Fall back to Issue Type mapping
-  return normalizeCategory(row['Issue Type'] ?? '');
+  // Check columns in priority order: Category > Type > Issue Type > Labels
+  const candidates = [
+    row['Category'],
+    row['category'],
+    row['Type'],
+    row['type'],
+    row['Issue Type'],
+    // Labels: use first label only
+    (row['Labels'] ?? '').split(',')[0],
+  ];
+  for (const raw of candidates) {
+    if (!raw?.trim()) continue;
+    const mapped = normalizeCategory(raw.trim());
+    if (mapped !== 'user_story') return mapped; // found a specific category
+  }
+  // If all candidates map to user_story (or are empty), still use Issue Type result
+  const issueType = row['Issue Type'] ?? row['Type'] ?? '';
+  return normalizeCategory(issueType);
 }
 
 function extractSprintNumber(name: string): number {
