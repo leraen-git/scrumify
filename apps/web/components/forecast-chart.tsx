@@ -295,7 +295,6 @@ export function ForecastChart({ past, future, summary }: Props) {
               stroke={C.overflowSeparator}
               strokeWidth={1.5}
               strokeDasharray="3 3"
-              label={{ value: "overflow →", position: "insideTopRight", fontSize: 10, fill: "#6b7280" }}
             />
           )}
 
