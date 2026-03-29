@@ -37,7 +37,55 @@ export class TeamsService {
 
   async update(teamId: string, data: { name?: string; sprintDuration?: number }) {
     await this.prisma.team.update({ where: { id: teamId }, data });
+    if (data.sprintDuration !== undefined) {
+      await this.syncSprintDates(teamId, data.sprintDuration);
+    }
     await this.syncSprintCapacities(teamId);
+  }
+
+  async syncSprintDates(teamId: string, durationWeeks: number) {
+    const DAY_MS = 86_400_000;
+    const durationMs = durationWeeks * 7 * DAY_MS;
+
+    const sprints = await this.prisma.sprint.findMany({
+      where: { teamId, status: { in: ['active', 'planned'] } },
+      orderBy: { startDate: 'asc' },
+    });
+    if (sprints.length === 0) return;
+
+    const activeSprint = sprints.find((s) => s.status === 'active');
+    const plannedSprints = sprints
+      .filter((s) => s.status === 'planned')
+      .sort((a, b) => a.startDate.localeCompare(b.startDate));
+
+    let lastEnd: Date | null = null;
+
+    // Active sprint: keep startDate, extend endDate
+    if (activeSprint) {
+      const start = new Date(activeSprint.startDate);
+      const end = new Date(start.getTime() + durationMs - DAY_MS);
+      await this.prisma.sprint.update({
+        where: { id: activeSprint.id },
+        data: { endDate: end.toISOString().slice(0, 10) },
+      });
+      lastEnd = end;
+    }
+
+    // Planned sprints: chain sequentially after previous sprint
+    for (const sprint of plannedSprints) {
+      const start = lastEnd
+        ? new Date(lastEnd.getTime() + DAY_MS)
+        : new Date(sprint.startDate);
+      const end = new Date(start.getTime() + durationMs - DAY_MS);
+      await this.prisma.sprint.update({
+        where: { id: sprint.id },
+        data: {
+          startDate: start.toISOString().slice(0, 10),
+          endDate: end.toISOString().slice(0, 10),
+        },
+      });
+      lastEnd = end;
+    }
   }
 
   async updateCategoryAllocations(teamId: string, allocations: Record<string, number>) {
