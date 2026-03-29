@@ -17,10 +17,13 @@ export async function Nav() {
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 bg-white/95 backdrop-blur">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-14 items-center justify-between gap-4">
-          <Link href={isAdmin ? "/admin" : "/"} className="flex items-center gap-2.5 font-semibold text-gray-900 hover:text-indigo-600 transition-colors">
-            <LayoutDashboard className="h-5 w-5 text-indigo-600" />
-            <span>A.R.G.O</span>
+        <div className="flex h-16 items-center justify-between gap-4">
+          <Link href={isAdmin ? "/admin" : "/"} className="flex items-center gap-2.5 hover:text-indigo-600 transition-colors">
+            <LayoutDashboard className="h-5 w-5 text-indigo-600 shrink-0" />
+            <div className="flex flex-col leading-tight">
+              <span className="text-lg font-bold text-gray-900 tracking-wide">A.R.G.O</span>
+              <span className="text-[10px] font-medium text-gray-400 tracking-wide">Agile Reporting &amp; Goal Observer</span>
+            </div>
           </Link>
 
           <div className="flex items-center gap-3">
