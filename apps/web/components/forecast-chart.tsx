@@ -216,11 +216,6 @@ export function ForecastChart({ past, future, summary }: Props) {
                 <strong>{summary.sprintsAhead} sprint{summary.sprintsAhead !== 1 ? "s" : ""} ahead</strong>
               </div>
             )}
-            {overflowFuture.length > 0 && (
-              <div className="rounded-full bg-gray-100 border border-gray-300 px-3 py-1 text-xs text-gray-500">
-                +{overflowFuture.length} overflow
-              </div>
-            )}
           </div>
         )}
       </div>
