@@ -224,6 +224,14 @@ export class ForecastService {
           ? Math.round(future.reduce((a, s) => a + s.capacity, 0) / future.length)
           : 0;
 
+      // Derive naming pattern from last planned sprint (e.g. "Sprint 5" → "Sprint ", 5)
+      const lastSprintName = lastSprint.name;
+      const numMatch = lastSprintName.match(/(\d+)\s*$/);
+      const namePrefix = numMatch
+        ? lastSprintName.slice(0, lastSprintName.lastIndexOf(numMatch[1]))
+        : 'Sprint ';
+      let nextSprintNum = numMatch ? parseInt(numMatch[1]) + 1 : team.sprints.length + 1;
+
       let overflowIndex = 1;
 
       while (remainingBacklogSP > 0 && overflowIndex <= MAX_OVERFLOW_SPRINTS) {
@@ -248,7 +256,7 @@ export class ForecastService {
         remainingBacklogSP = Math.max(0, remainingBacklogSP - backlogFillSP);
 
         future.push({
-          name: `Overflow +${overflowIndex}`,
+          name: `${namePrefix}${nextSprintNum}`,
           startDate: startStr,
           endDate: endStr,
           capacity,
@@ -261,6 +269,7 @@ export class ForecastService {
         });
 
         overflowIndex++;
+        nextSprintNum++;
       }
     }
 
