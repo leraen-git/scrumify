@@ -203,7 +203,8 @@ export default async function SprintPage({
     .filter((s) => s.status === "done")
     .reduce((a, s) => a + s.storyPoints, 0);
   const totalPoints = sprint.userStories.reduce((a, s) => a + s.storyPoints, 0);
-  const progress = sprint.capacity > 0 ? Math.round((donePoints / sprint.capacity) * 100) : 0;
+  const denominator = sprint.capacity > 0 ? sprint.capacity : totalPoints;
+  const progress = denominator > 0 ? Math.round((donePoints / denominator) * 100) : 0;
 
   const updateSprintAction = updateSprint.bind(null, sprintId, teamId);
   const updateStatusAction = updateSprintStatus.bind(null, sprintId, teamId);

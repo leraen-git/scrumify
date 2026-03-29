@@ -26,7 +26,8 @@ const statusConfig = {
 function SprintCard({ sprint, teamId }: { sprint: SprintWithStories; teamId: string }) {
   const done = sprint.userStories.filter((s) => s.status === "done").reduce((a, s) => a + s.storyPoints, 0);
   const total = sprint.userStories.reduce((a, s) => a + s.storyPoints, 0);
-  const progress = sprint.capacity > 0 ? Math.round((done / sprint.capacity) * 100) : 0;
+  const denominator = sprint.capacity > 0 ? sprint.capacity : total;
+  const progress = denominator > 0 ? Math.round((done / denominator) * 100) : 0;
   const cfg = statusConfig[sprint.status as keyof typeof statusConfig] ?? statusConfig.planned;
   const today = new Date().toISOString().slice(0, 10);
   const totalDays = countWorkingDays(sprint.startDate, sprint.endDate);

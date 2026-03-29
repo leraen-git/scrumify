@@ -327,7 +327,8 @@ export default async function TeamDashboard({
         const stories = activeSprint.userStories;
         const donePoints = stories.filter((s) => s.status === "done").reduce((a, s) => a + s.storyPoints, 0);
         const totalPoints = stories.reduce((a, s) => a + s.storyPoints, 0);
-        const progress = activeSprint.capacity > 0 ? Math.round((donePoints / activeSprint.capacity) * 100) : 0;
+        const denominator = activeSprint.capacity > 0 ? activeSprint.capacity : totalPoints;
+        const progress = denominator > 0 ? Math.round((donePoints / denominator) * 100) : 0;
 
         const carryoverCount = stories.filter((s) => {
           const h = JSON.parse(s.sprintHistory ?? "[]") as { toSprintId: string }[];
