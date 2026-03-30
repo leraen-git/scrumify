@@ -12,19 +12,25 @@ function buildAccessLink(token: string) {
 export class AdminService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAllUsers() {
-    return this.prisma.user.findMany({
+  async findAllUsers() {
+    const users = await this.prisma.user.findMany({
       orderBy: { createdAt: 'asc' },
       select: {
         id: true,
         email: true,
         name: true,
         role: true,
+        accessToken: true,
         assignedTeamId: true,
         assignedTeam: { select: { id: true, name: true } },
         createdAt: true,
       },
     });
+    // Return accessLink (derived from token) but not the raw token
+    return users.map(({ accessToken, ...u }) => ({
+      ...u,
+      accessToken: accessToken ?? null,
+    }));
   }
 
   async createUser(data: { name: string; teamId: string }) {
