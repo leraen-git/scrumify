@@ -90,14 +90,27 @@ function getElapsedMs(statusHistory: string | null, status: string, createdAt?: 
   return null;
 }
 
+function accumulateStatusMs(history: { from: string; to: string; at: string }[], statusName: string): number | null {
+  const firstExit = history.find((e) => e.from === statusName);
+  const firstEntry = history.find((e) => e.to === statusName);
+  if (!firstExit) return null;
+  let total = 0;
+  let enteredAt: number | null = firstEntry ? null : new Date(firstExit.at).getTime();
+  for (const event of history) {
+    if (event.to === statusName) enteredAt = new Date(event.at).getTime();
+    else if (event.from === statusName && enteredAt !== null) {
+      total += new Date(event.at).getTime() - enteredAt;
+      enteredAt = null;
+    }
+  }
+  return total > 0 ? total : null;
+}
+
 function getCompletedTimings(statusHistory: string | null) {
   const history = JSON.parse(statusHistory ?? "[]") as { from: string; to: string; at: string }[];
-  const inProgressAt = history.findLast((e) => e.to === "in_progress")?.at;
-  const devDoneAt    = history.findLast((e) => e.to === "dev_done")?.at;
-  const doneAt       = history.findLast((e) => e.to === "done")?.at;
   return {
-    devMs:  inProgressAt && devDoneAt ? new Date(devDoneAt).getTime() - new Date(inProgressAt).getTime() : null,
-    testMs: devDoneAt && doneAt       ? new Date(doneAt).getTime()    - new Date(devDoneAt).getTime()    : null,
+    devMs:  accumulateStatusMs(history, "in_progress"),
+    testMs: accumulateStatusMs(history, "dev_done"),
   };
 }
 
@@ -497,9 +510,7 @@ export default async function TeamDashboard({
                         const elapsedMs = (status === "in_progress" || status === "dev_done")
                           ? getElapsedMs(story.statusHistory, status, story.createdAt)
                           : null;
-                        const { devMs, testMs } = status === "done"
-                          ? getCompletedTimings(story.statusHistory)
-                          : { devMs: null, testMs: null };
+                        const { devMs, testMs } = getCompletedTimings(story.statusHistory);
 
                         if (isAdmin && editStory === story.id) {
                           return (

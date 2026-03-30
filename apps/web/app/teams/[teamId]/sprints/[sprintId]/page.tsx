@@ -139,8 +139,14 @@ function getElapsedMs(statusHistory: string | null, status: string, createdAt?: 
 }
 
 function accumulateStatusMs(history: { from: string; to: string; at: string }[], statusName: string): number | null {
+  const firstExit = history.find((e) => e.from === statusName);
+  const firstEntry = history.find((e) => e.to === statusName);
+  if (!firstExit) return null; // never left this status — still in it or never visited
+
   let total = 0;
-  let enteredAt: number | null = null;
+  // For imported tickets: no "to: statusName" entry exists, use first exit time as entry
+  let enteredAt: number | null = firstEntry ? null : new Date(firstExit.at).getTime();
+
   for (const event of history) {
     if (event.to === statusName) enteredAt = new Date(event.at).getTime();
     else if (event.from === statusName && enteredAt !== null) {
