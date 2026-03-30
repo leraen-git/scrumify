@@ -5,7 +5,7 @@ import { resolve } from 'path';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const cookieParser = require('cookie-parser');
 import { AppModule } from './app.module';
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '../generated/prisma/client';
 
 async function runStartupMigrations() {
   const prisma = new PrismaClient();
