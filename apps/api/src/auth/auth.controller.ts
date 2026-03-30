@@ -1,6 +1,7 @@
 import { Controller, Post, Get, Body, Req, Res, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
 import { IsEmail, IsString, MinLength, MaxLength, Matches } from 'class-validator';
 import { Throttle } from '@nestjs/throttler';
+
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { SessionGuard, SESSION_COOKIE } from './session.guard';
@@ -11,12 +12,9 @@ export const CTX_COOKIE = 'argo_ctx';
 
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
-const IS_PROD = process.env.NODE_ENV === 'production';
-
 const COOKIE_OPTS = {
   httpOnly: true,
-  secure: IS_PROD,
-  sameSite: IS_PROD ? ('strict' as const) : ('lax' as const),
+  sameSite: 'lax' as const,
   path: '/',
   maxAge: SESSION_MAX_AGE,
 };
