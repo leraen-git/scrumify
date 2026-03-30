@@ -41,6 +41,18 @@ async function updateStory(storyId: string, sprintId: string, teamId: string, fo
   redir(`/teams/${teamId}`);
 }
 
+async function updateStoryEnvironment(storyId: string, sprintId: string, teamId: string, formData: FormData) {
+  "use server";
+  const { apiFetch: api } = await import("@/lib/api");
+  const { revalidatePath: revalidate } = await import("next/cache");
+  const environment = (formData.get("environment") as string) || null;
+  await api(`/api/teams/${teamId}/sprints/${sprintId}/stories/${storyId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ environment }),
+  });
+  revalidate(`/teams/${teamId}`);
+}
+
 async function updateStoryStatus(storyId: string, sprintId: string, teamId: string, formData: FormData) {
   "use server";
   const { apiFetch: api } = await import("@/lib/api");
@@ -154,7 +166,7 @@ export default async function TeamDashboard({
     sprints: {
       id: string; name: string; startDate: string; endDate: string;
       status: string; capacity: number; plannedPoints: number;
-      userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string; sprintHistory: string; createdAt: string }[];
+      userStories: { id: string; title: string; storyPoints: number; status: string; category: string; assigneeId: string | null; spChanges: string | null; statusHistory: string; sprintHistory: string; createdAt: string; environment: string | null }[];
     }[];
   }
   const [team, forecast] = await Promise.all([
@@ -503,6 +515,7 @@ export default async function TeamDashboard({
                         const updateStatusAction = updateStoryStatus.bind(null, story.id, activeSprint.id, teamId);
                         const removeStoryAction = removeStory.bind(null, story.id, activeSprint.id, teamId);
                         const updateStoryAction = updateStory.bind(null, story.id, activeSprint.id, teamId);
+                        const updateEnvironmentAction = updateStoryEnvironment.bind(null, story.id, activeSprint.id, teamId);
                         const moveAction = moveStoryToSprint.bind(null, story.id, activeSprint.id, teamId);
                         const assignee = team.developers.find((d) => d.id === story.assigneeId);
                         const spHistory = JSON.parse(story.spChanges ?? "[]") as { from: number; to: number; at: string }[];
@@ -581,6 +594,33 @@ export default async function TeamDashboard({
                                 </div>
                               )}
                             </div>
+                            {/* Environment — bugs only */}
+                            {story.category === "bug" && (
+                              isAdmin ? (
+                                <form action={updateEnvironmentAction} className="shrink-0">
+                                  <select
+                                    name="environment"
+                                    defaultValue={story.environment ?? ""}
+                                    onChange={(e) => e.currentTarget.form?.requestSubmit()}
+                                    className="h-6 rounded border border-gray-200 bg-white px-1 text-[10px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                                  >
+                                    <option value="">env?</option>
+                                    <option value="dev">Dev</option>
+                                    <option value="staging">Staging</option>
+                                    <option value="preprod">Preprod</option>
+                                    <option value="prod">Prod</option>
+                                  </select>
+                                </form>
+                              ) : story.environment ? (
+                                <span className={`text-[10px] font-medium rounded px-1.5 py-0.5 shrink-0 border ${
+                                  story.environment === "prod"    ? "bg-red-50 text-red-600 border-red-200" :
+                                  story.environment === "preprod" ? "bg-amber-50 text-amber-600 border-amber-200" :
+                                  story.environment === "staging" ? "bg-blue-50 text-blue-600 border-blue-200" :
+                                                                    "bg-gray-50 text-gray-500 border-gray-200"
+                                }`}>{story.environment}</span>
+                              ) : null
+                            )}
+
                             {/* Elapsed timer for active stories */}
                             {elapsedMs !== null && (
                               <span
