@@ -242,8 +242,7 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
       </div>
 
       {/* Cycle time by story points */}
-      {cycleTimeBySP.some((b) => b.count > 0) && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
           {cycleTimeBySP.map(({ sp, avgDays, count }) => (
             <div key={sp} className="bg-white rounded-xl border border-gray-200 p-4">
               <div className="flex items-center justify-between mb-1">
@@ -260,8 +259,7 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
               <p className="text-[10px] text-gray-400 mt-1">avg cycle time</p>
             </div>
           ))}
-        </div>
-      )}
+      </div>
 
       {sprintVelocities.length === 0 ? (
         <div className="space-y-6">
