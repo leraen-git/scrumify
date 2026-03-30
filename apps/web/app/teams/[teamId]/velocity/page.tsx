@@ -171,7 +171,8 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
   // Cycle time by story points: first in_progress → done (calendar days)
   const SP_BUCKETS = [5, 8, 13, 21];
   const cycleBuckets: Record<number, number[]> = { 5: [], 8: [], 13: [], 21: [] };
-  for (const sprint of completedSprints) {
+  const sprintsForCycle = [...completedSprints, ...(activeSprint ? [activeSprint] : [])];
+  for (const sprint of sprintsForCycle) {
     for (const story of sprint.userStories) {
       if (story.status !== "done" || !SP_BUCKETS.includes(story.storyPoints) || !story.statusHistory) continue;
       const history: StatusEvent[] = JSON.parse(story.statusHistory ?? "[]");
