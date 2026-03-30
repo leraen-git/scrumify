@@ -195,7 +195,8 @@ export default async function TeamDashboard({
     return `${Math.round((hours / 24) * 10) / 10}d`;
   }
 
-  const completedStories = completedSprints.flatMap((s) => s.userStories.filter((u) => u.status === "done"));
+  const allSprintsForMetrics = [...completedSprints, ...(activeSprint ? [activeSprint] : [])];
+  const completedStories = allSprintsForMetrics.flatMap((s) => s.userStories.filter((u) => u.status === "done"));
   const avgDevTime = calcAvgStatusDuration(completedStories, "in_progress");
   const avgTestTime = calcAvgStatusDuration(completedStories, "dev_done");
 
