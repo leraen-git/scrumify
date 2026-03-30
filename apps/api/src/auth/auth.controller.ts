@@ -21,7 +21,12 @@ const COOKIE_OPTS = {
   maxAge: SESSION_MAX_AGE,
 };
 
-class AuthDto {
+class LoginDto {
+  @IsEmail() @MaxLength(255) email: string;
+  @IsString() @MinLength(1) @MaxLength(128) password: string;
+}
+
+class RegisterDto {
   @IsEmail() @MaxLength(255) email: string;
   @IsString() @MinLength(8) @MaxLength(128)
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, {
@@ -50,7 +55,7 @@ export class AuthController {
   @Public()
   @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Post('register')
-  async register(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
+  async register(@Body() dto: RegisterDto, @Res({ passthrough: true }) res: Response) {
     const { session, user } = await this.authService.register(dto.email, dto.password);
     setAuthCookies(res, session.id, user);
     return { ok: true };
@@ -60,7 +65,7 @@ export class AuthController {
   @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  async login(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
+  async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
     const { session, user } = await this.authService.login(dto.email, dto.password);
     setAuthCookies(res, session.id, user);
     return { ok: true };
