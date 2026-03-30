@@ -179,19 +179,30 @@ export default async function TeamDashboard({
     const durations: number[] = [];
     for (const story of stories) {
       const history = JSON.parse(story.statusHistory ?? "[]") as { from: string; to: string; at: string }[];
-      // Find when the story entered the status (via a "to" transition)
-      const enteredIdx = history.findIndex((h) => h.to === enterStatus);
-      // Find when the story left the status
-      const leftIdx = history.findIndex((h) => h.from === enterStatus);
-      if (leftIdx === -1) continue; // never left — still in progress, skip
-      // If we have an entry transition use it; otherwise use the exit transition's timestamp
-      // as a lower-bound (ticket was already in this status before history started)
-      const enteredAt = enteredIdx !== -1
-        ? new Date(history[enteredIdx].at).getTime()
-        : new Date(history[leftIdx].at).getTime();
-      const leftAt = new Date(history[leftIdx].at).getTime();
-      const durationMs = leftAt - enteredAt;
-      if (durationMs > 0) durations.push(durationMs / (1000 * 60 * 60));
+      // Accumulate ALL stints in this status (handles back-and-forth transitions)
+      let totalMs = 0;
+      let enteredAt: number | null = null;
+
+      // If the story starts in this status (first entry has from === enterStatus
+      // but no prior to === enterStatus), treat the first exit as a 0-duration entry
+      const firstExit = history.find((h) => h.from === enterStatus);
+      const firstEntry = history.find((h) => h.to === enterStatus);
+      if (!firstExit) continue; // never left this status — skip (still in it)
+
+      // If no recorded entry, use the first exit timestamp as entry (imported tickets)
+      if (!firstEntry) {
+        enteredAt = new Date(firstExit.at).getTime();
+      }
+
+      for (const event of history) {
+        if (event.to === enterStatus) {
+          enteredAt = new Date(event.at).getTime();
+        } else if (event.from === enterStatus && enteredAt !== null) {
+          totalMs += new Date(event.at).getTime() - enteredAt;
+          enteredAt = null;
+        }
+      }
+      if (totalMs > 0) durations.push(totalMs / (1000 * 60 * 60));
     }
     if (durations.length === 0) return null;
     return Math.round((durations.reduce((a, b) => a + b, 0) / durations.length) * 10) / 10;
@@ -588,6 +599,14 @@ export default async function TeamDashboard({
                                 <input type="hidden" name="status" value={cfg.next} />
                                 <button type="submit" className="text-xs font-medium whitespace-nowrap px-2 py-1 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-colors">
                                   → {storyStatusConfig[cfg.next as keyof typeof storyStatusConfig]?.label}
+                                </button>
+                              </form>
+                            )}
+                            {isAdmin && status === "dev_done" && (
+                              <form action={updateStatusAction} className="shrink-0">
+                                <input type="hidden" name="status" value="in_progress" />
+                                <button type="submit" className="text-xs font-medium whitespace-nowrap px-2 py-1 rounded-md border border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 hover:border-amber-300 transition-colors">
+                                  ← Back to Dev
                                 </button>
                               </form>
                             )}

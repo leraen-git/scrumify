@@ -138,18 +138,23 @@ function getElapsedMs(statusHistory: string | null, status: string, createdAt?: 
   return null;
 }
 
+function accumulateStatusMs(history: { from: string; to: string; at: string }[], statusName: string): number | null {
+  let total = 0;
+  let enteredAt: number | null = null;
+  for (const event of history) {
+    if (event.to === statusName) enteredAt = new Date(event.at).getTime();
+    else if (event.from === statusName && enteredAt !== null) {
+      total += new Date(event.at).getTime() - enteredAt;
+      enteredAt = null;
+    }
+  }
+  return total > 0 ? total : null;
+}
+
 function getStatusTimings(statusHistory: string | null) {
   const history = JSON.parse(statusHistory ?? "[]") as { from: string; to: string; at: string }[];
-  let devMs: number | null = null;
-  let testMs: number | null = null;
-
-  const inProgressAt = history.findLast((e) => e.to === "in_progress")?.at;
-  const devDoneAt = history.findLast((e) => e.to === "dev_done")?.at;
-  const doneAt = history.findLast((e) => e.to === "done")?.at;
-
-  if (inProgressAt && devDoneAt) devMs = new Date(devDoneAt).getTime() - new Date(inProgressAt).getTime();
-  if (devDoneAt && doneAt) testMs = new Date(doneAt).getTime() - new Date(devDoneAt).getTime();
-
+  const devMs = accumulateStatusMs(history, "in_progress");
+  const testMs = accumulateStatusMs(history, "dev_done");
   return { devMs, testMs };
 }
 
@@ -612,6 +617,16 @@ export default async function SprintPage({
                           <input type="hidden" name="status" value={cfg.next} />
                           <button type="submit" className="text-xs font-medium whitespace-nowrap px-2 py-1 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-colors">
                             → {storyStatusConfig[cfg.next as keyof typeof storyStatusConfig]?.label}
+                          </button>
+                        </form>
+                      )}
+
+                      {/* Back to Dev — admin, dev_done only */}
+                      {isAdmin && status === "dev_done" && (
+                        <form action={updateStatusAction} className="shrink-0">
+                          <input type="hidden" name="status" value="in_progress" />
+                          <button type="submit" className="text-xs font-medium whitespace-nowrap px-2 py-1 rounded-md border border-amber-200 bg-amber-50 text-amber-600 hover:bg-amber-100 hover:border-amber-300 transition-colors">
+                            ← Back to Dev
                           </button>
                         </form>
                       )}
