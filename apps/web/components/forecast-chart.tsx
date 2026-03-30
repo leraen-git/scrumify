@@ -177,7 +177,7 @@ export function ForecastChart({ past, future, summary }: Props) {
       backlogFillSP: 0,
     })),
     ...future.map((s) => ({
-      name: s.name,
+      name: s.isOverflow ? `${s.name} - forecast` : s.name,
       barA: s.capacity,
       barB: 0,
       isFuture: true,
