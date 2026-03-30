@@ -119,6 +119,19 @@ export class ForecastService {
           )
         : DEFAULT_EFFICIENCY;
 
+    // Average velocity per team·day (SP / working-day across all devs combined)
+    // Used to scale forecast to actual sprint length instead of relying purely on capacity ratio
+    const avgTeamVelocityPerDay =
+      completedSprints.length > 0
+        ? completedSprints.reduce((sum, s) => {
+            const delivered = s.userStories
+              .filter((u) => u.status === 'done')
+              .reduce((a, u) => a + u.storyPoints, 0);
+            const workingDays = Math.max(1, countWorkingDays(s.startDate, s.endDate));
+            return sum + delivered / workingDays;
+          }, 0) / completedSprints.length
+        : 0;
+
     const avgVelocitySP =
       completedSprints.length > 0
         ? Math.round(
@@ -193,7 +206,15 @@ export class ForecastService {
         );
       }
 
-      const forecastDelivery = Math.round(capacity * avgEfficiency);
+      // Prefer velocity-based forecast (scales with sprint length); fall back to capacity×efficiency
+      const sprintWorkingDays = countWorkingDays(sprint.startDate, sprint.endDate);
+      const velocityBased = avgTeamVelocityPerDay > 0
+        ? Math.round(avgTeamVelocityPerDay * sprintWorkingDays)
+        : 0;
+      const forecastDelivery = Math.min(
+        capacity,
+        velocityBased > 0 ? velocityBased : Math.round(capacity * avgEfficiency),
+      );
       const assignedSP = sprint.userStories.reduce((a, u) => a + u.storyPoints, 0);
       const room = Math.max(0, forecastDelivery - assignedSP);
       const backlogFillSP = Math.min(room, remainingBacklogSP);
@@ -251,7 +272,14 @@ export class ForecastService {
 
         if (capacity === 0) break;
 
-        const forecastDelivery = Math.round(capacity * avgEfficiency);
+        const overflowWorkingDays = countWorkingDays(startStr, endStr);
+        const overflowVelocityBased = avgTeamVelocityPerDay > 0
+          ? Math.round(avgTeamVelocityPerDay * overflowWorkingDays)
+          : 0;
+        const forecastDelivery = Math.min(
+          capacity,
+          overflowVelocityBased > 0 ? overflowVelocityBased : Math.round(capacity * avgEfficiency),
+        );
         const backlogFillSP = Math.min(forecastDelivery, remainingBacklogSP);
         remainingBacklogSP = Math.max(0, remainingBacklogSP - backlogFillSP);
 
