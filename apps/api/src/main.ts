@@ -5,22 +5,8 @@ import { resolve } from 'path';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const cookieParser = require('cookie-parser');
 import { AppModule } from './app.module';
-import { PrismaClient } from '../generated/prisma/client';
-
-async function runStartupMigrations() {
-  const prisma = new PrismaClient({});
-  try {
-    await prisma.$executeRawUnsafe('ALTER TABLE "UserStory" ADD COLUMN IF NOT EXISTS "environment" TEXT');
-    console.log('Startup migrations applied.');
-  } catch {
-    console.warn('Startup migration skipped (column may already exist).');
-  } finally {
-    await prisma.$disconnect().catch(() => null);
-  }
-}
 
 async function bootstrap() {
-  await runStartupMigrations();
   const isProduction = process.env.NODE_ENV === 'production';
 
   const httpsOptions = isProduction

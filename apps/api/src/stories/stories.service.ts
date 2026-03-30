@@ -30,7 +30,7 @@ export class StoriesService {
     teamId: string,
     sprintId: string,
     storyId: string,
-    data: { title?: string; storyPoints?: number; assigneeId?: string | null; status?: string; category?: string; sprintId?: string; environment?: string | null },
+    data: { title?: string; storyPoints?: number; assigneeId?: string | null; status?: string; category?: string; sprintId?: string },
   ) {
     const sprint = await this.prisma.sprint.findUnique({ where: { id: sprintId } });
     if (!sprint || sprint.teamId !== teamId) throw new NotFoundException();
@@ -49,7 +49,6 @@ export class StoriesService {
     }
     if (data.category !== undefined) updateData.category = data.category;
     if (data.assigneeId !== undefined) updateData.assigneeId = data.assigneeId ?? null;
-    if (data.environment !== undefined) updateData.environment = data.environment ?? null;
 
     if (data.storyPoints !== undefined && data.storyPoints !== current.storyPoints) {
       const history = JSON.parse(current.spChanges ?? '[]') as { from: number; to: number; at: string }[];

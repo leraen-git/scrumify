@@ -12,7 +12,6 @@ import { StoriesService } from './stories.service';
 
 const VALID_STATUSES = ['todo', 'in_progress', 'dev_done', 'done'] as const;
 const VALID_CATEGORIES = ['user_story', 'bug', 'mco', 'best_effort', 'tech_lead'] as const;
-const VALID_ENVIRONMENTS = ['dev', 'staging', 'preprod', 'prod'] as const;
 
 class CreateStoryDto {
   @IsString() @IsNotEmpty() @MaxLength(500) title: string;
@@ -28,7 +27,6 @@ class UpdateStoryDto {
   @IsOptional() @IsIn(VALID_STATUSES) status?: string;
   @IsOptional() @IsIn(VALID_CATEGORIES) category?: string;
   @IsOptional() @IsString() sprintId?: string;
-  @IsOptional() @IsIn([...VALID_ENVIRONMENTS, null]) environment?: string | null;
 }
 
 class ImportStoryDto {

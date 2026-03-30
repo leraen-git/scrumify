@@ -1,4 +1,3 @@
-import { BugEnvironmentChart } from "@/components/bug-environment-chart";
 import { CategoryDonutChart } from "@/components/category-donut-chart";
 import { EstimationScatterChart, ScatterPoint } from "@/components/estimation-scatter-chart";
 import { ForecastChart, ForecastSummary, FutureSprintPoint, PastSprintPoint } from "@/components/forecast-chart";
@@ -32,7 +31,6 @@ interface SprintWithStories {
     assigneeId: string | null;
     statusHistory?: string | null;
     sprintHistory?: string | null;
-    environment?: string | null;
   }[];
 }
 
@@ -316,19 +314,6 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
               past={forecast.past}
               future={forecast.future}
               summary={forecast.summary}
-            />
-          )}
-
-          {/* Bug environment chart */}
-          {chartSprints.length > 0 && (
-            <BugEnvironmentChart
-              sprints={chartSprints.map((s) => ({
-                name: s.name,
-                stories: s.userStories.map((u) => ({
-                  category: u.category ?? "user_story",
-                  environment: u.environment ?? null,
-                })),
-              }))}
             />
           )}
 
