@@ -168,6 +168,28 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
       ? Math.round((sprintVelocities.reduce((a, s) => a + s.velocityPerDay, 0) / sprintVelocities.length) * 100) / 100
       : 0;
 
+  // Cycle time by story points: first in_progress → done (calendar days)
+  const SP_BUCKETS = [5, 8, 13, 21];
+  const cycleBuckets: Record<number, number[]> = { 5: [], 8: [], 13: [], 21: [] };
+  for (const sprint of completedSprints) {
+    for (const story of sprint.userStories) {
+      if (story.status !== "done" || !SP_BUCKETS.includes(story.storyPoints) || !story.statusHistory) continue;
+      const history: StatusEvent[] = JSON.parse(story.statusHistory ?? "[]");
+      const enteredDev = history.find((e) => e.to === "in_progress");
+      const becameDone = [...history].reverse().find((e) => e.to === "done");
+      if (!enteredDev || !becameDone) continue;
+      const ms = new Date(becameDone.at).getTime() - new Date(enteredDev.at).getTime();
+      if (ms <= 0) continue;
+      cycleBuckets[story.storyPoints].push(ms / (1000 * 60 * 60 * 24));
+    }
+  }
+  const cycleTimeBySP = SP_BUCKETS.map((sp) => {
+    const items = cycleBuckets[sp];
+    if (items.length === 0) return { sp, avgDays: null as number | null, count: 0 };
+    const avg = items.reduce((a, b) => a + b, 0) / items.length;
+    return { sp, avgDays: Math.round(avg * 10) / 10, count: items.length };
+  });
+
   const chartData = chartSprints.map((sprint) => {
     const delivered = sprint.userStories
       .filter((s) => s.status === "done")
@@ -217,6 +239,28 @@ export default async function VelocityPage({ params }: { params: Promise<{ teamI
           </span>
         )}
       </div>
+
+      {/* Cycle time by story points */}
+      {cycleTimeBySP.some((b) => b.count > 0) && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          {cycleTimeBySP.map(({ sp, avgDays, count }) => (
+            <div key={sp} className="bg-white rounded-xl border border-gray-200 p-4">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">{sp} SP</span>
+                {count > 0 && <span className="text-[10px] text-gray-400">{count} {count === 1 ? "story" : "stories"}</span>}
+              </div>
+              <div className="mt-2">
+                {avgDays !== null ? (
+                  <span className="text-2xl font-bold text-gray-900">{avgDays}<span className="text-sm font-normal text-gray-400 ml-1">d</span></span>
+                ) : (
+                  <span className="text-2xl font-bold text-gray-300">—</span>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">avg cycle time</p>
+            </div>
+          ))}
+        </div>
+      )}
 
       {sprintVelocities.length === 0 ? (
         <div className="space-y-6">
