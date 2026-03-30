@@ -139,11 +139,30 @@ function Row({ label, value, color, bold }: { label: string; value: number; colo
 
 // ── Constants ──────────────────────────────────────────────────────────────
 
-const PAGE_SIZE = 7;
+// On small screens: 2 before active + active + 2 after = 5
+// On large screens: 7
+const PAGE_SIZE_SM = 5;
+const PAGE_SIZE_LG = 7;
+
+function useWindowWidth() {
+  const [width, setWidth] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth : 1024
+  );
+  useState(() => {
+    if (typeof window === "undefined") return;
+    const handler = () => setWidth(window.innerWidth);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  });
+  return width;
+}
 
 // ── Component ──────────────────────────────────────────────────────────────
 
 export function ForecastChart({ past, future, summary }: Props) {
+  const windowWidth = useWindowWidth();
+  const pageSize = windowWidth < 1024 ? PAGE_SIZE_SM : PAGE_SIZE_LG;
+
   // Build the full dataset (all sprints, past + future + overflow)
   const allData: ChartPoint[] = useMemo(() => [
     ...past.map((s) => ({
@@ -170,19 +189,18 @@ export function ForecastChart({ past, future, summary }: Props) {
     })),
   ], [past, future]);
 
-  const totalPages = Math.max(1, Math.ceil(allData.length / PAGE_SIZE));
-
-  // Default page: show the page containing the active sprint, otherwise the last page
-  const [page, setPage] = useState(() => {
+  // Default offset: center the window on the active sprint (2 before it)
+  const [offset, setOffset] = useState(() => {
     const activeIdx = allData.findIndex((d) => d.isActive);
-    if (activeIdx >= 0) return Math.floor(activeIdx / PAGE_SIZE);
-    return Math.max(0, totalPages - 1);
+    if (activeIdx >= 0) return Math.max(0, activeIdx - 2);
+    return Math.max(0, allData.length - PAGE_SIZE_LG);
   });
 
   if (allData.length === 0) return null;
 
-  const clampedPage = Math.min(page, totalPages - 1);
-  const visible = allData.slice(clampedPage * PAGE_SIZE, clampedPage * PAGE_SIZE + PAGE_SIZE);
+  const maxOffset = Math.max(0, allData.length - pageSize);
+  const clampedOffset = Math.min(offset, maxOffset);
+  const visible = allData.slice(clampedOffset, clampedOffset + pageSize);
 
   // Reference lines inside the visible slice
   const firstFutureName = visible.find((d) => d.isFuture && !d.isOverflow)?.name ?? null;
@@ -319,28 +337,25 @@ export function ForecastChart({ past, future, summary }: Props) {
         </ComposedChart>
       </ResponsiveContainer>
 
-      {/* Pagination — always shown when there are more sprints than the page size */}
-      {allData.length > PAGE_SIZE && (
+      {/* Pagination */}
+      {allData.length > pageSize && (
         <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-gray-100">
           <span className="text-xs text-gray-400 mr-auto">
-            Showing {clampedPage * PAGE_SIZE + 1}–{Math.min((clampedPage + 1) * PAGE_SIZE, allData.length)} of {allData.length} sprints
+            Showing {clampedOffset + 1}–{Math.min(clampedOffset + pageSize, allData.length)} of {allData.length} sprints
           </span>
           <button
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={clampedPage === 0}
+            onClick={() => setOffset((o) => Math.max(0, o - 1))}
+            disabled={clampedOffset === 0}
             className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            aria-label="Previous sprints"
+            aria-label="Previous sprint"
           >
             <ChevronLeft className="h-4 w-4 text-gray-500" />
           </button>
-          <span className="text-xs text-gray-400 tabular-nums">
-            {clampedPage + 1} / {totalPages}
-          </span>
           <button
-            onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-            disabled={clampedPage >= totalPages - 1}
+            onClick={() => setOffset((o) => Math.min(maxOffset, o + 1))}
+            disabled={clampedOffset >= maxOffset}
             className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            aria-label="Next sprints"
+            aria-label="Next sprint"
           >
             <ChevronRight className="h-4 w-4 text-gray-500" />
           </button>
