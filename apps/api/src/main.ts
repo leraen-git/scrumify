@@ -10,12 +10,12 @@ import { PrismaClient } from '../generated/prisma/client';
 async function runStartupMigrations() {
   const prisma = new PrismaClient();
   try {
-    await prisma.$executeRaw`ALTER TABLE "UserStory" ADD COLUMN IF NOT EXISTS "environment" TEXT`;
+    await prisma.$executeRawUnsafe('ALTER TABLE "UserStory" ADD COLUMN IF NOT EXISTS "environment" TEXT');
     console.log('Startup migrations applied.');
-  } catch (e) {
-    console.error('Startup migration warning:', e);
+  } catch {
+    console.warn('Startup migration skipped (column may already exist).');
   } finally {
-    await prisma.$disconnect();
+    await prisma.$disconnect().catch(() => null);
   }
 }
 
