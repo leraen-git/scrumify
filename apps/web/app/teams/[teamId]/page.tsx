@@ -179,12 +179,19 @@ export default async function TeamDashboard({
     const durations: number[] = [];
     for (const story of stories) {
       const history = JSON.parse(story.statusHistory ?? "[]") as { from: string; to: string; at: string }[];
+      // Find when the story entered the status (via a "to" transition)
       const enteredIdx = history.findIndex((h) => h.to === enterStatus);
-      if (enteredIdx === -1) continue;
-      const enteredAt = new Date(history[enteredIdx].at).getTime();
-      const leftEntry = history.slice(enteredIdx + 1).find((h) => h.from === enterStatus);
-      if (!leftEntry) continue;
-      durations.push((new Date(leftEntry.at).getTime() - enteredAt) / (1000 * 60 * 60));
+      // Find when the story left the status
+      const leftIdx = history.findIndex((h) => h.from === enterStatus);
+      if (leftIdx === -1) continue; // never left — still in progress, skip
+      // If we have an entry transition use it; otherwise use the exit transition's timestamp
+      // as a lower-bound (ticket was already in this status before history started)
+      const enteredAt = enteredIdx !== -1
+        ? new Date(history[enteredIdx].at).getTime()
+        : new Date(history[leftIdx].at).getTime();
+      const leftAt = new Date(history[leftIdx].at).getTime();
+      const durationMs = leftAt - enteredAt;
+      if (durationMs > 0) durations.push(durationMs / (1000 * 60 * 60));
     }
     if (durations.length === 0) return null;
     return Math.round((durations.reduce((a, b) => a + b, 0) / durations.length) * 10) / 10;
