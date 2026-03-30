@@ -113,12 +113,13 @@
   <div class="toc-entry section"><span>5. Team Dashboard</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
   <div class="toc-entry sub"><span>5.1 Overview Metrics</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
   <div class="toc-entry sub"><span>5.2 Active Sprint Board</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
+  <div class="toc-entry sub"><span>5.3 Project Forecast Chart</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
 
-  <div class="toc-entry section"><span>6. Sprint Management</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
-  <div class="toc-entry sub"><span>6.1 Creating a Sprint</span><span class="toc-dots"></span><span class="toc-page-num">8</span></div>
+  <div class="toc-entry section"><span>6. Sprint Management</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
+  <div class="toc-entry sub"><span>6.1 Creating a Sprint</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
   <div class="toc-entry sub"><span>6.2 Managing Stories</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
-  <div class="toc-entry sub"><span>6.3 Importing Stories</span><span class="toc-dots"></span><span class="toc-page-num">9</span></div>
-  <div class="toc-entry sub"><span>6.4 Sprint Lifecycle</span><span class="toc-dots"></span><span class="toc-page-num">10</span></div>
+  <div class="toc-entry sub"><span>6.3 Importing Stories</span><span class="toc-dots"></span><span class="toc-page-num">10</span></div>
+  <div class="toc-entry sub"><span>6.4 Sprint Lifecycle</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
 
   <div class="toc-entry section"><span>7. Team Settings</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
   <div class="toc-entry sub"><span>7.1 Developer Management</span><span class="toc-dots"></span><span class="toc-page-num">11</span></div>
@@ -333,13 +334,19 @@
   <ul>
     <li>Story ID (8-character truncated identifier)</li>
     <li>Story title</li>
-    <li>Story points (shown in red if the points were ever changed)</li>
+    <li>Story points (shown in red if the points were ever changed; hover for full change history)</li>
     <li>Assignee name (if assigned)</li>
-    <li>Status move button, edit button, and delete button</li>
+    <li><strong>Dev time badge</strong> — time spent in "In Progress" status (shown for In Progress, Dev Done, and Done stories)</li>
+    <li><strong>Test time badge</strong> — time spent in "Dev Done / Testing" status (shown for Dev Done and Done stories)</li>
+    <li>Status move button (→), <strong>Back to Dev button</strong> (← Back to Dev, shown for Dev Done stories), edit button, and delete button</li>
   </ul>
 
   <div class="tip">
-    <strong>Tip:</strong> Hover over a story's point value to see the full history of point changes with timestamps.
+    <strong>Tip:</strong> Dev and test times accumulate correctly even when a story is moved back-and-forth between statuses — the badge always shows the total combined time.
+  </div>
+
+  <div class="note">
+    <strong>Back to Dev:</strong> If a story fails testing, click <strong>← Back to Dev</strong> on any Dev Done story to return it to In Progress. The subsequent time in development will be added to the existing dev time total.
   </div>
 
   <h3>No Active Sprint</h3>
@@ -347,6 +354,48 @@
 
   <h3>Upcoming and Completed Sprints</h3>
   <p>Below the active sprint board, planned and completed sprints are displayed as cards in a 4-per-row grid. Click any sprint card to open its detailed board.</p>
+</div>
+
+<!-- CHAPTER 5 ADDENDUM: PROJECT FORECAST -->
+<div class="page">
+  <h2>5.3 Project Forecast Chart</h2>
+  <p>Below the sprint cards on the Dashboard, the <strong>Project Forecast</strong> chart combines historical sprint data with backlog analysis to predict future delivery.</p>
+
+  <h3>How the Forecast Is Calculated</h3>
+  <p>The forecast uses your team's <strong>average velocity per developer-day</strong> (from completed sprints), scaled to each future sprint's actual working days. This means shorter or longer sprints automatically get proportionally adjusted forecasts.</p>
+
+  <table>
+    <tr><th>Input</th><th>Source</th></tr>
+    <tr><td>Historical velocity</td><td>Completed sprints — SP delivered ÷ working days</td></tr>
+    <tr><td>Future sprint capacity</td><td>Developer story point capacities × available working days (minus days off)</td></tr>
+    <tr><td>Backlog work</td><td>User stories with no sprint assigned, ordered by priority</td></tr>
+  </table>
+
+  <h3>Chart Colour Key</h3>
+  <table>
+    <tr><th>Colour</th><th>Meaning</th></tr>
+    <tr><td>Indigo bars (past)</td><td>Planned vs. delivered SP — shows historical accuracy</td></tr>
+    <tr><td>Amber bar (active)</td><td>Current sprint progress</td></tr>
+    <tr><td>Grey bar (future)</td><td>Forecasted capacity for planned sprints</td></tr>
+    <tr><td>Darker grey (overflow)</td><td>Synthetic sprints auto-generated to absorb excess backlog</td></tr>
+  </table>
+
+  <h3>Overflow Sprints</h3>
+  <p>If backlog work exceeds the capacity of all planned sprints, the chart auto-generates up to 6 <strong>overflow sprints</strong> labelled "<em>Sprint N — forecast</em>". These help you understand how far ahead work extends and whether you need to add more planned sprints or reduce backlog scope.</p>
+
+  <h3>Navigation</h3>
+  <p>The chart shows 7 sprints at once on desktop (5 on mobile), centred on the active sprint. Click <strong>← →</strong> to scroll through the full sprint history and forecast.</p>
+
+  <h3>Summary Badges</h3>
+  <ul>
+    <li><strong>Backlog</strong> — total unplanned stories and their SP</li>
+    <li><strong>N sprints ahead</strong> — number of future sprints (planned + overflow) needed to deliver all backlog work</li>
+    <li><strong>Historical efficiency %</strong> — shown in the subtitle; 85% default when no completed sprints exist yet</li>
+  </ul>
+
+  <div class="tip">
+    <strong>Tip:</strong> Keep your backlog prioritised and your sprints planned ahead so the forecast chart accurately reflects your delivery timeline. The forecast becomes more accurate as you complete more sprints.
+  </div>
 </div>
 
 <!-- CHAPTER 6: SPRINT MANAGEMENT -->
@@ -385,8 +434,16 @@
     <div class="status-arrow">→</div>
     <div class="status-item">Done</div>
   </div>
+  <p style="text-align:center;font-size:9pt;color:#6b7280;margin-top:4px;">← Back to Dev available from Dev Done → In Progress</p>
 
-  <p>Click the <strong>move button</strong> (→) on a story card to advance it to the next status. The system automatically records the time spent at each status for analytics.</p>
+  <p>Click the <strong>→ button</strong> on a story card to advance it to the next status. The system automatically records the time spent at each status for analytics.</p>
+
+  <h3>Sending a Story Back to Development</h3>
+  <p>If a story in <strong>Dev Done / Testing</strong> fails its tests, click the <strong>← Back to Dev</strong> button to move it back to In Progress. The story will resume development tracking — time spent in both this and any future In Progress stints is accumulated into the total dev time shown on the card.</p>
+
+  <div class="note">
+    <strong>Note:</strong> The Back to Dev button is only available for stories currently in Dev Done / Testing status. Use this when a tester identifies an issue that requires rework.
+  </div>
 
   <h3>Editing a Story</h3>
   <p>Click the <strong>pencil icon</strong> on a story card to open the inline editor. You can update the title, story points, category, and assignee. Click <strong>Save</strong> to confirm changes.</p>
@@ -452,11 +509,12 @@
   <p>Below the progress bars, a category breakdown table shows how stories are distributed by type, including SP done vs. total for each category.</p>
 
   <h3>Transition Times</h3>
-  <p>The sprint board also displays average time metrics:</p>
+  <p>The sprint board displays average time metrics at the top:</p>
   <ul>
-    <li><strong>Avg In Progress → Dev Done</strong> — how long development is taking on average</li>
-    <li><strong>Avg Testing → Done</strong> — how long testing/review is taking on average</li>
+    <li><strong>Avg In Progress → Dev Done</strong> — how long development is taking on average across the sprint</li>
+    <li><strong>Avg Testing → Done</strong> — how long testing/review is taking on average across the sprint</li>
   </ul>
+  <p>Additionally, each individual story card shows its own <strong>dev time</strong> and <strong>test time</strong> badges. These are visible on In Progress, Dev Done, and Done stories, and correctly accumulate time across all back-and-forth transitions.</p>
 </div>
 
 <!-- CHAPTER 7: TEAM SETTINGS -->

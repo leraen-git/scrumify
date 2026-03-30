@@ -100,6 +100,7 @@
   <div class="toc-entry sub"><span>3.2 Velocity &amp; Category Charts</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
   <div class="toc-entry sub"><span>3.3 Active Sprint Board</span><span class="toc-dots"></span><span class="toc-page-num">5</span></div>
   <div class="toc-entry sub"><span>3.4 Upcoming &amp; Completed Sprints</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
+  <div class="toc-entry sub"><span>3.5 Project Forecast</span><span class="toc-dots"></span><span class="toc-page-num">6</span></div>
 
   <div class="toc-entry section"><span>4. Sprints</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
   <div class="toc-entry sub"><span>4.1 Viewing All Sprints</span><span class="toc-dots"></span><span class="toc-page-num">7</span></div>
@@ -252,10 +253,16 @@
     <li><strong>Story points</strong> — estimated complexity/effort</li>
     <li><strong>Assignee</strong> — the developer assigned to the story (if any)</li>
     <li><strong>Category badge</strong> — type of work (User Story, Bug, MCO, etc.)</li>
+    <li><strong>Dev time badge</strong> <span class="badge badge-amber">dev Xh</span> — total time the story spent in development. Visible on stories that have moved past In Progress, including completed stories.</li>
+    <li><strong>Test time badge</strong> <span class="badge badge-blue">test Xh</span> — total time the story spent in testing. Visible on stories that have moved past Dev Done, including completed stories.</li>
   </ul>
 
   <div class="tip">
     <strong>Tip:</strong> If a story's point value appears in red, it means the estimate was changed at some point. Hover over the number to see the full history of point changes.
+  </div>
+
+  <div class="note">
+    <strong>Note:</strong> Dev and test times accumulate correctly even if a story is sent back to development after testing. The total reflects all time spent in each status combined.
   </div>
 </div>
 
@@ -280,6 +287,31 @@
   </ul>
 
   <p>Click any sprint card to open its full details page.</p>
+
+  <h2>3.5 Project Forecast</h2>
+  <p>Below the sprint cards, the dashboard shows a <strong>Project Forecast</strong> chart that visualises past performance and predicts how many future sprints will be needed to complete all backlog work.</p>
+
+  <h3>Reading the Chart</h3>
+  <table>
+    <tr><th>Bar colour</th><th>What it represents</th></tr>
+    <tr><td><span class="badge" style="background:#c7d2fe;color:#3730a3">Indigo (light)</span></td><td>Story points planned in a past sprint</td></tr>
+    <tr><td><span class="badge" style="background:#6366f1;color:#fff">Indigo (dark)</span></td><td>Story points actually delivered in a past sprint</td></tr>
+    <tr><td><span class="badge" style="background:#fde68a;color:#92400e">Amber</span></td><td>Active sprint (planned and in-progress delivery)</td></tr>
+    <tr><td><span class="badge" style="background:#e5e7eb;color:#374151">Grey</span></td><td>Future sprint capacity (forecast)</td></tr>
+  </table>
+
+  <h3>Sliding Window</h3>
+  <p>The chart displays 7 sprints at a time on a wide screen (5 on a narrow screen), centred on the active sprint. Use the <strong>← →</strong> arrows to scroll left or right through all sprints.</p>
+
+  <h3>Overflow Sprints</h3>
+  <p>If the backlog contains more work than can fit in the currently planned sprints, the chart automatically generates <strong>forecast sprints</strong> (labelled "<em>Sprint N — forecast</em>"). These are synthetic future sprints that show how many additional sprints would be needed to clear the backlog at the team's current velocity.</p>
+
+  <h3>Summary Badges</h3>
+  <p>At the top-right of the forecast panel you will see:</p>
+  <ul>
+    <li><strong>Backlog</strong> — number of stories and total story points waiting to be planned</li>
+    <li><strong>N sprints ahead</strong> — total future sprints (planned + overflow) required to deliver all backlog work</li>
+  </ul>
 </div>
 
 <!-- CHAPTER 4: SPRINTS -->
@@ -359,12 +391,16 @@
     <li><strong>Category badge</strong> — type of work with custom color</li>
     <li><strong>Story points</strong> — shown in red if ever modified (hover for history)</li>
     <li><strong>Assignee</strong> — developer assigned to the story</li>
-    <li><strong>Dev time badge</strong> — shows time spent in development (visible once the story has moved past In Progress)</li>
-    <li><strong>Test time badge</strong> — shows time spent in testing (visible once the story has moved past Dev Done)</li>
+    <li><strong>Dev time badge</strong> <span class="badge badge-amber">dev Xh</span> — accumulated time in development. Shown on In Progress, Dev Done, and Done stories.</li>
+    <li><strong>Test time badge</strong> <span class="badge badge-blue">test Xh</span> — accumulated time in testing. Shown on Dev Done and Done stories.</li>
   </ul>
 
   <div class="note">
     <strong>Note:</strong> On the detailed sprint board, you will not see edit or move buttons — those are available to Admins only. Your view is read-only, showing all the same story information without modification controls.
+  </div>
+
+  <div class="tip">
+    <strong>Tip:</strong> Dev and test times accumulate even if a story is moved back-and-forth between statuses. The badge always shows the total combined time across all transitions.
   </div>
 </div>
 
