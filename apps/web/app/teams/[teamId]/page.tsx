@@ -196,9 +196,13 @@ export default async function TeamDashboard({
   }
 
   const allSprintsForMetrics = [...completedSprints, ...(activeSprint ? [activeSprint] : [])];
-  const completedStories = allSprintsForMetrics.flatMap((s) => s.userStories.filter((u) => u.status === "done"));
-  const avgDevTime = calcAvgStatusDuration(completedStories, "in_progress");
-  const avgTestTime = calcAvgStatusDuration(completedStories, "dev_done");
+  const allActiveStories = allSprintsForMetrics.flatMap((s) => s.userStories);
+  // Dev time: any story that left in_progress (dev_done or done)
+  const devDoneOrDoneStories = allActiveStories.filter((u) => u.status === "dev_done" || u.status === "done");
+  // Test time: only stories that completed testing (done)
+  const doneStories = allActiveStories.filter((u) => u.status === "done");
+  const avgDevTime = calcAvgStatusDuration(devDoneOrDoneStories, "in_progress");
+  const avgTestTime = calcAvgStatusDuration(doneStories, "dev_done");
 
   const avgCompletion =
     completedSprints.length > 0
