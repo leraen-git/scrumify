@@ -1,9 +1,10 @@
 import {
   Controller, Get, Post, Patch, Delete,
-  Param, Body, HttpCode, HttpStatus,
+  Param, Body, HttpCode, HttpStatus, UseGuards,
 } from '@nestjs/common';
 import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
 import { AdminService } from './admin.service';
+import { AdminGuard } from '../auth/admin.guard';
 
 class CreateUserDto {
   @IsString() @IsNotEmpty() @MaxLength(100) name: string;
@@ -16,6 +17,7 @@ class UpdateUserDto {
 }
 
 @Controller('admin')
+@UseGuards(AdminGuard)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 

@@ -3,26 +3,29 @@ import {
   Param, Body, HttpCode, HttpStatus,
 } from '@nestjs/common';
 import {
-  IsString, IsNotEmpty, IsInt, Min, IsOptional, IsArray, ValidateNested, IsNumber, MaxLength, ArrayMaxSize,
+  IsString, IsNotEmpty, IsInt, Min, Max, IsOptional, IsArray, ValidateNested, IsNumber, MaxLength, ArrayMaxSize, IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { StoriesService } from './stories.service';
 
 // ── DTOs ─────────────────────────────────────────────────────────────────
 
+const VALID_STATUSES = ['todo', 'in_progress', 'dev_done', 'done'] as const;
+const VALID_CATEGORIES = ['user_story', 'bug', 'mco', 'best_effort', 'tech_lead'] as const;
+
 class CreateStoryDto {
   @IsString() @IsNotEmpty() @MaxLength(500) title: string;
-  @IsInt() @Min(1) storyPoints: number;
+  @IsInt() @Min(1) @Max(200) storyPoints: number;
   @IsOptional() @IsString() assigneeId?: string | null;
-  @IsOptional() @IsString() category?: string;
+  @IsOptional() @IsIn(VALID_CATEGORIES) category?: string;
 }
 
 class UpdateStoryDto {
   @IsOptional() @IsString() @IsNotEmpty() @MaxLength(500) title?: string;
-  @IsOptional() @IsInt() @Min(1) storyPoints?: number;
+  @IsOptional() @IsInt() @Min(1) @Max(200) storyPoints?: number;
   @IsOptional() @IsString() assigneeId?: string | null;
-  @IsOptional() @IsString() status?: string;
-  @IsOptional() @IsString() category?: string;
+  @IsOptional() @IsIn(VALID_STATUSES) status?: string;
+  @IsOptional() @IsIn(VALID_CATEGORIES) category?: string;
   @IsOptional() @IsString() sprintId?: string;
 }
 

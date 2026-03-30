@@ -1,10 +1,11 @@
 import {
   Controller, Get, Post, Patch, Delete,
-  Param, Body, HttpCode, HttpStatus,
+  Param, Body, HttpCode, HttpStatus, UseGuards,
 } from '@nestjs/common';
 import { IsString, IsInt, IsNotEmpty, Min, Max, IsOptional, MaxLength, IsNumber, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { TeamsService } from './teams.service';
+import { AdminGuard } from '../auth/admin.guard';
 
 class CreateTeamDto {
   @IsString() @IsNotEmpty() @MaxLength(100) name: string;
@@ -40,11 +41,13 @@ export class TeamsController {
   constructor(private readonly teams: TeamsService) {}
 
   @Get()
+  @UseGuards(AdminGuard)
   findAll() {
     return this.teams.findAll();
   }
 
   @Post()
+  @UseGuards(AdminGuard)
   create(@Body() dto: CreateTeamDto) {
     return this.teams.create(dto);
   }
@@ -60,6 +63,7 @@ export class TeamsController {
   }
 
   @Delete(':teamId')
+  @UseGuards(AdminGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   remove(@Param('teamId') teamId: string) {
     return this.teams.remove(teamId);

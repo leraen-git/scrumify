@@ -1,21 +1,21 @@
 import {
   Controller, Get, Post, Patch, Param, Body, Res,
 } from '@nestjs/common';
-import { IsString, IsNotEmpty, IsOptional, MaxLength } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, MaxLength, IsIn, IsDateString } from 'class-validator';
 import { Response } from 'express';
 import { SprintsService } from './sprints.service';
 
 class CreateSprintDto {
   @IsString() @IsNotEmpty() @MaxLength(100) name: string;
-  @IsString() @IsNotEmpty() startDate: string;
-  @IsString() @IsNotEmpty() endDate: string;
+  @IsDateString() startDate: string;
+  @IsDateString() endDate: string;
 }
 
 class UpdateSprintDto {
   @IsOptional() @IsString() @IsNotEmpty() @MaxLength(100) name?: string;
-  @IsOptional() @IsString() startDate?: string;
-  @IsOptional() @IsString() endDate?: string;
-  @IsOptional() @IsString() status?: string;
+  @IsOptional() @IsDateString() startDate?: string;
+  @IsOptional() @IsDateString() endDate?: string;
+  @IsOptional() @IsIn(['planned', 'active', 'completed']) status?: string;
 }
 
 @Controller('teams/:teamId/sprints')

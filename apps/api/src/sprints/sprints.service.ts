@@ -4,7 +4,9 @@ import { TeamsService } from '../teams/teams.service';
 import { calcSprintCapacity } from '../lib/utils';
 
 function csvEscape(value: string | number | null | undefined): string {
-  const str = String(value ?? '');
+  let str = String(value ?? '');
+  // Prevent CSV formula injection (Excel/Sheets execute cells starting with = + - @)
+  if (/^[=+\-@\t\r]/.test(str)) str = `'${str}`;
   return `"${str.replace(/"/g, '""')}"`;
 }
 

@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Body, Req, Res, HttpCode, HttpStatus, UseGuards } from '@nestjs/common';
-import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
+import { IsEmail, IsString, MinLength, MaxLength, Matches } from 'class-validator';
+import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { SessionGuard, SESSION_COOKIE } from './session.guard';
@@ -10,16 +11,23 @@ export const CTX_COOKIE = 'argo_ctx';
 
 const SESSION_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
+const IS_PROD = process.env.NODE_ENV === 'production';
+
 const COOKIE_OPTS = {
   httpOnly: true,
-  sameSite: 'lax' as const,
+  secure: IS_PROD,
+  sameSite: IS_PROD ? ('strict' as const) : ('lax' as const),
   path: '/',
   maxAge: SESSION_MAX_AGE,
 };
 
 class AuthDto {
   @IsEmail() @MaxLength(255) email: string;
-  @IsString() @MinLength(8) @MaxLength(128) password: string;
+  @IsString() @MinLength(8) @MaxLength(128)
+  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/, {
+    message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number',
+  })
+  password: string;
 }
 
 class AccessDto {
@@ -40,6 +48,7 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 5 } })
   @Post('register')
   async register(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
     const { session, user } = await this.authService.register(dto.email, dto.password);
@@ -48,6 +57,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: AuthDto, @Res({ passthrough: true }) res: Response) {
@@ -57,6 +67,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post('access')
   @HttpCode(HttpStatus.OK)
   async access(@Body() dto: AccessDto, @Res({ passthrough: true }) res: Response) {

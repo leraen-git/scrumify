@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module';
 import { AdminModule } from './admin/admin.module';
 import { ImportModule } from './import/import.module';
 import { SessionGuard } from './auth/session.guard';
+import { TeamAccessGuard } from './auth/team-access.guard';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { SessionGuard } from './auth/session.guard';
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: SessionGuard },
+    { provide: APP_GUARD, useClass: TeamAccessGuard },
   ],
 })
 export class AppModule {}

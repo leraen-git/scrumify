@@ -20,8 +20,6 @@ export class AdminService {
         email: true,
         name: true,
         role: true,
-        accessToken: true,
-        accessLink: true,
         assignedTeamId: true,
         assignedTeam: { select: { id: true, name: true } },
         createdAt: true,
