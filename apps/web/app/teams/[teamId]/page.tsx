@@ -1,3 +1,4 @@
+import { BugEnvironmentChart } from "@/components/bug-environment-chart";
 import { CategoryDonutChart } from "@/components/category-donut-chart";
 import { KanbanCategoryFilter } from "@/components/kanban-category-filter";
 import { StoryEnvironmentSelect } from "@/components/story-environment-select";
@@ -341,6 +342,17 @@ export default async function TeamDashboard({
         .filter((c) => c.sp > 0),
       avgDevMs:  devTimes.length  > 0 ? devTimes.reduce((a, v)  => a + v, 0) / devTimes.length  : null,
       avgTestMs: testTimes.length > 0 ? testTimes.reduce((a, v) => a + v, 0) / testTimes.length : null,
+      bugsByEnvironment: (() => {
+        const bugs = activeSprint.userStories.filter((s) => s.category === "bug");
+        if (bugs.length === 0) return null;
+        const counts = { dev: 0, staging: 0, preprod: 0, prod: 0, unset: 0 };
+        for (const b of bugs) {
+          const env = b.environment as keyof typeof counts | null;
+          if (env && env in counts) counts[env]++;
+          else counts.unset++;
+        }
+        return counts;
+      })(),
       storiesByStatus: {
         todo:        toExportStories(activeSprint.userStories.filter((s) => s.status === "todo")),
         in_progress: toExportStories(activeSprint.userStories.filter((s) => s.status === "in_progress")),
@@ -441,6 +453,18 @@ export default async function TeamDashboard({
               />
             );
           })()}
+        </div>
+      )}
+
+      {/* Bugs by Environment */}
+      {chartSprints.some((s) => s.userStories.some((u) => u.category === "bug")) && (
+        <div className="mb-8">
+          <BugEnvironmentChart
+            sprints={chartSprints.map((s) => ({
+              name: s.name,
+              stories: s.userStories.map((u) => ({ category: u.category, environment: u.environment })),
+            }))}
+          />
         </div>
       )}
 

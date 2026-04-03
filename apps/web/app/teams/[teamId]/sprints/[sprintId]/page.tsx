@@ -296,6 +296,17 @@ export default async function SprintPage({
       .filter((c) => c.sp > 0),
     avgDevMs:  devTimesAll.length  > 0 ? devTimesAll.reduce((a, v)  => a + v, 0) / devTimesAll.length  : null,
     avgTestMs: testTimesAll.length > 0 ? testTimesAll.reduce((a, v) => a + v, 0) / testTimesAll.length : null,
+    bugsByEnvironment: (() => {
+      const bugs = sprint.userStories.filter((s) => s.category === "bug");
+      if (bugs.length === 0) return null;
+      const counts = { dev: 0, staging: 0, preprod: 0, prod: 0, unset: 0 };
+      for (const b of bugs) {
+        const env = b.environment as keyof typeof counts | null;
+        if (env && env in counts) counts[env]++;
+        else counts.unset++;
+      }
+      return counts;
+    })(),
     storiesByStatus: {
       todo:        toExportStories(sprint.userStories.filter((s) => s.status === "todo")),
       in_progress: toExportStories(sprint.userStories.filter((s) => s.status === "in_progress")),

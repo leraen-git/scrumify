@@ -22,6 +22,14 @@ export interface ExportCategory {
   spDone: number;
 }
 
+export interface BugsByEnvironment {
+  dev: number;
+  staging: number;
+  preprod: number;
+  prod: number;
+  unset: number;
+}
+
 export interface SprintExportData {
   name: string;
   teamName: string;
@@ -34,6 +42,7 @@ export interface SprintExportData {
   categories: ExportCategory[];
   avgDevMs: number | null;
   avgTestMs: number | null;
+  bugsByEnvironment: BugsByEnvironment | null;
   storiesByStatus: {
     todo: ExportStory[];
     in_progress: ExportStory[];
@@ -352,7 +361,46 @@ async function generatePptx(data: SprintExportData, selected: Set<SectionKey>) {
       } as never);
     }
 
-    // Chart 3: SP Done vs Capacity — Column chart
+    // Chart 3: Bugs by Environment — Stacked column chart
+    if (data.bugsByEnvironment) {
+      const envLabels = ["Dev", "Staging", "Preprod", "Prod", "Unknown"];
+      const envValues = [
+        data.bugsByEnvironment.dev,
+        data.bugsByEnvironment.staging,
+        data.bugsByEnvironment.preprod,
+        data.bugsByEnvironment.prod,
+        data.bugsByEnvironment.unset,
+      ];
+      const totalBugs = envValues.reduce((a, v) => a + v, 0);
+
+      if (totalBugs > 0) {
+        const s = prs.addSlide();
+        addHeader(s, "Bugs by Environment");
+
+        // Filter out zero-count environments
+        const filtered = envLabels
+          .map((label, i) => ({ label, value: envValues[i], color: ["9CA3AF", "60A5FA", "F59E0B", "EF4444", "E5E7EB"][i] }))
+          .filter((e) => e.value > 0);
+
+        s.addChart("bar" as never, [{
+          name: "Bugs",
+          labels: filtered.map((e) => e.label),
+          values: filtered.map((e) => e.value),
+        }], {
+          x: 1.0, y: 0.85, w: 8.0, h: 4.3,
+          barDir: "col",
+          showLegend: false,
+          showValue: true,
+          dataLabelFontSize: 14,
+          dataLabelColor: "FFFFFF",
+          chartColors: filtered.map((e) => e.color),
+          valAxisHidden: true,
+          catAxisLabelFontSize: 13,
+        } as never);
+      }
+    }
+
+    // Chart 4: SP Done vs Capacity — Column chart
     {
       const s = prs.addSlide();
       addHeader(s, "Sprint Progress — Story Points");
@@ -550,6 +598,43 @@ function ExportPreview({ data, selected }: { data: SprintExportData; selected: S
               </div>
             </div>
           )}
+
+          {/* Bugs by Environment */}
+          {data.bugsByEnvironment && (() => {
+            const ENV = [
+              { key: "prod",    label: "Prod",    color: "#ef4444" },
+              { key: "preprod", label: "Preprod", color: "#f59e0b" },
+              { key: "staging", label: "Staging", color: "#60a5fa" },
+              { key: "dev",     label: "Dev",     color: "#9ca3af" },
+              { key: "unset",   label: "Unknown", color: "#e5e7eb" },
+            ] as const;
+            const totalBugs = Object.values(data.bugsByEnvironment!).reduce((a, v) => a + v, 0);
+            if (totalBugs === 0) return null;
+            return (
+              <div style={{ marginBottom: 24 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Bugs by Environment</p>
+                {ENV.map(({ key, label, color }) => {
+                  const count = data.bugsByEnvironment![key];
+                  if (count === 0) return null;
+                  const pct = Math.round((count / totalBugs) * 100);
+                  return (
+                    <div key={key} style={{ marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6b7280", marginBottom: 3 }}>
+                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />
+                          {label}
+                        </span>
+                        <span style={{ fontWeight: 600, color: "#1f2937" }}>{count} bug{count !== 1 ? "s" : ""} ({pct}%)</span>
+                      </div>
+                      <div style={{ height: 10, backgroundColor: "#f3f4f6", borderRadius: 4, overflow: "hidden" }}>
+                        <div style={{ width: `${pct}%`, height: "100%", backgroundColor: color, borderRadius: 4 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
 
           {/* SP Progress — Capacity vs Done */}
           <div style={{ marginBottom: 24 }}>
