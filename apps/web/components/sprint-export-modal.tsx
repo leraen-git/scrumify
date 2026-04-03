@@ -308,23 +308,17 @@ async function generatePptx(data: SprintExportData, selected: Set<SectionKey>) {
 
   // ── Charts — screenshot actual DOM elements ───────────────────────────────
   if (selected.has("charts")) {
-    const html2canvasLib = (await import("html2canvas")).default;
+    const { toPng } = await import("html-to-image");
 
     // Helper: capture a DOM element to base64 PNG
     const capture = async (selector: string): Promise<string | null> => {
       const el = document.querySelector(selector) as HTMLElement | null;
       if (!el) return null;
       try {
-        const canvas = await html2canvasLib(el, {
+        return await toPng(el, {
           backgroundColor: "#ffffff",
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          logging: false,
-          scrollX: 0,
-          scrollY: -window.scrollY,
+          pixelRatio: 2,
         });
-        return canvas.toDataURL("image/png");
       } catch {
         return null;
       }
@@ -355,7 +349,7 @@ async function generatePptx(data: SprintExportData, selected: Set<SectionKey>) {
 // ─── PNG generation — captures real page sections by data-export-section ────
 
 async function generatePng(selected: Set<SectionKey>, name: string) {
-  const html2canvas = (await import("html2canvas")).default;
+  const { toCanvas } = await import("html-to-image");
 
   const sectionOrder: SectionKey[] = ["summary", "charts", "categories", "times", "stories"];
   const canvases: HTMLCanvasElement[] = [];
@@ -365,14 +359,9 @@ async function generatePng(selected: Set<SectionKey>, name: string) {
     const el = document.querySelector(`[data-export-section="${key}"]`) as HTMLElement | null;
     if (!el) continue;
     try {
-      const c = await html2canvas(el, {
+      const c = await toCanvas(el, {
         backgroundColor: "#ffffff",
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-        scrollX: 0,
-        scrollY: -window.scrollY,
+        pixelRatio: 2,
       });
       canvases.push(c);
     } catch {
