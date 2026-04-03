@@ -46,6 +46,7 @@ export interface SprintExportData {
 
 const SECTIONS = [
   { key: "summary",    label: "Sprint Summary" },
+  { key: "charts",     label: "Charts" },
   { key: "categories", label: "Category Breakdown" },
   { key: "times",      label: "Avg Transition Times" },
   { key: "stories",    label: "Stories by Status" },
@@ -296,6 +297,84 @@ async function generatePptx(data: SprintExportData, selected: Set<SectionKey>) {
     }
   }
 
+  // ── Charts ────────────────────────────────────────────────────────────────
+  if (selected.has("charts")) {
+    // Chart 1: Category Distribution — Pie chart
+    if (data.categories.length > 0) {
+      const s = prs.addSlide();
+      addHeader(s, "Category Distribution (Story Points)");
+
+      s.addChart("pie" as never, [{
+        name: "SP per Category",
+        labels: data.categories.map((c) => safe(c.label)),
+        values: data.categories.map((c) => c.sp),
+      }], {
+        x: 0.8, y: 0.85, w: 8.4, h: 4.5,
+        showLegend: true,
+        legendPos: "r",
+        showPercent: true,
+        dataLabelFontSize: 12,
+        legendFontSize: 13,
+        chartColors: data.categories.map((c) => c.color.replace("#", "").toUpperCase()),
+      } as never);
+    }
+
+    // Chart 2: Story Status Distribution — Horizontal bar chart
+    const statusCounts = STATUS_ORDER
+      .map((k) => ({ label: STATUS_LABELS[k], count: data.storiesByStatus[k].length }))
+      .filter((d) => d.count > 0);
+
+    if (statusCounts.length > 0) {
+      const s = prs.addSlide();
+      addHeader(s, "Story Status Distribution");
+
+      const barColors: Record<string, string> = {
+        "Done":                 "22C55E",
+        "In Progress":          "F59E0B",
+        "Dev Done / Testing":   "A855F7",
+        "To Do":                "94A3B8",
+      };
+
+      s.addChart("bar" as never, [{
+        name: "Stories",
+        labels: statusCounts.map((d) => d.label),
+        values: statusCounts.map((d) => d.count),
+      }], {
+        x: 0.6, y: 0.85, w: 8.8, h: 4.3,
+        barDir: "bar",
+        showLegend: false,
+        showValue: true,
+        dataLabelFontSize: 13,
+        dataLabelColor: "FFFFFF",
+        chartColors: statusCounts.map((d) => barColors[d.label] ?? "94A3B8"),
+        valAxisHidden: true,
+        catAxisLabelFontSize: 13,
+      } as never);
+    }
+
+    // Chart 3: SP Done vs Capacity — Column chart
+    {
+      const s = prs.addSlide();
+      addHeader(s, "Sprint Progress — Story Points");
+
+      s.addChart("bar" as never, [{
+        name: "Story Points",
+        labels: ["Capacity", "Planned", "Done"],
+        values: [data.capacity, data.totalPoints, data.donePoints],
+      }], {
+        x: 1.5, y: 0.85, w: 7.0, h: 4.3,
+        barDir: "col",
+        showLegend: false,
+        showValue: true,
+        dataLabelFontSize: 14,
+        dataLabelColor: "FFFFFF",
+        chartColors: [C.primaryDk, "6B7280", "22C55E"],
+        valAxisHidden: true,
+        catAxisLabelFontSize: 14,
+      } as never);
+    }
+  }
+
   await prs.writeFile({
     fileName: `${data.name.replace(/[^a-z0-9\-_]/gi, "_")}_sprint_review.pptx`,
   });
@@ -438,6 +517,89 @@ function ExportPreview({ data, selected }: { data: SprintExportData; selected: S
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Charts */}
+      {selected.has("charts") && (
+        <div style={sectionStyle}>
+          <div style={headingStyle}>Charts</div>
+
+          {/* Category Distribution — stacked bar */}
+          {data.categories.length > 0 && data.totalPoints > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
+                Category Distribution (Story Points)
+              </p>
+              <div style={{ display: "flex", height: 24, borderRadius: 4, overflow: "hidden", marginBottom: 10 }}>
+                {data.categories.map((c) => (
+                  <div
+                    key={c.key}
+                    style={{ width: `${(c.sp / data.totalPoints) * 100}%`, backgroundColor: c.color }}
+                    title={`${c.label}: ${c.sp} SP`}
+                  />
+                ))}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px 20px" }}>
+                {data.categories.map((c) => (
+                  <div key={c.key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#374151" }}>
+                    <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: c.color, flexShrink: 0 }} />
+                    {c.label}: <strong>{c.sp} SP</strong>&nbsp;({Math.round((c.sp / data.totalPoints) * 100)}%)
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* SP Progress — Capacity vs Done */}
+          <div style={{ marginBottom: 24 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Sprint Progress (Story Points)</p>
+            {[
+              { label: "Capacity", value: data.capacity, color: "#6366f1", max: Math.max(data.capacity, data.totalPoints, data.donePoints) },
+              { label: "Planned",  value: data.totalPoints, color: "#6b7280", max: Math.max(data.capacity, data.totalPoints, data.donePoints) },
+              { label: "Done",     value: data.donePoints, color: "#22c55e", max: Math.max(data.capacity, data.totalPoints, data.donePoints) },
+            ].map((row) => (
+              <div key={row.label} style={{ marginBottom: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6b7280", marginBottom: 3 }}>
+                  <span>{row.label}</span>
+                  <span style={{ fontWeight: 600, color: "#1f2937" }}>{row.value} SP</span>
+                </div>
+                <div style={{ height: 10, backgroundColor: "#f3f4f6", borderRadius: 4, overflow: "hidden" }}>
+                  <div style={{ width: `${row.max > 0 ? (row.value / row.max) * 100 : 0}%`, height: "100%", backgroundColor: row.color, borderRadius: 4 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Story Status Distribution */}
+          {(() => {
+            const totalStories = Object.values(data.storiesByStatus).reduce((a, arr) => a + arr.length, 0);
+            if (totalStories === 0) return null;
+            const statusColors: Record<string, string> = {
+              done: "#22c55e", in_progress: "#f59e0b", dev_done: "#a855f7", todo: "#94a3b8",
+            };
+            return (
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Story Status Distribution</p>
+                {STATUS_ORDER.map((k) => {
+                  const count = data.storiesByStatus[k].length;
+                  if (count === 0) return null;
+                  const pct = Math.round((count / totalStories) * 100);
+                  return (
+                    <div key={k} style={{ marginBottom: 8 }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6b7280", marginBottom: 3 }}>
+                        <span>{STATUS_LABELS[k]}</span>
+                        <span style={{ fontWeight: 600, color: "#1f2937" }}>{count} stories ({pct}%)</span>
+                      </div>
+                      <div style={{ height: 10, backgroundColor: "#f3f4f6", borderRadius: 4, overflow: "hidden" }}>
+                        <div style={{ width: `${pct}%`, height: "100%", backgroundColor: statusColors[k], borderRadius: 4 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       )}
 
