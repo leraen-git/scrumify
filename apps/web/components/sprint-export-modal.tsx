@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { Download, X } from "lucide-react";
 
 // ─── Public types (used by page.tsx to build the prop) ────────────────────
@@ -306,120 +306,44 @@ async function generatePptx(data: SprintExportData, selected: Set<SectionKey>) {
     }
   }
 
-  // ── Charts ────────────────────────────────────────────────────────────────
+  // ── Charts — screenshot actual DOM elements ───────────────────────────────
   if (selected.has("charts")) {
-    // Chart 1: Category Distribution — Pie chart
-    if (data.categories.length > 0) {
-      const s = prs.addSlide();
-      addHeader(s, "Category Distribution (Story Points)");
+    const html2canvasLib = (await import("html2canvas")).default;
 
-      s.addChart("pie" as never, [{
-        name: "SP per Category",
-        labels: data.categories.map((c) => safe(c.label)),
-        values: data.categories.map((c) => c.sp),
-      }], {
-        x: 0.8, y: 0.85, w: 8.4, h: 4.5,
-        showLegend: true,
-        legendPos: "r",
-        showPercent: true,
-        dataLabelFontSize: 12,
-        legendFontSize: 13,
-        chartColors: data.categories.map((c) => c.color.replace("#", "").toUpperCase()),
-      } as never);
-    }
-
-    // Chart 2: Story Status Distribution — Horizontal bar chart
-    const statusCounts = STATUS_ORDER
-      .map((k) => ({ label: STATUS_LABELS[k], count: data.storiesByStatus[k].length }))
-      .filter((d) => d.count > 0);
-
-    if (statusCounts.length > 0) {
-      const s = prs.addSlide();
-      addHeader(s, "Story Status Distribution");
-
-      const barColors: Record<string, string> = {
-        "Done":                 "22C55E",
-        "In Progress":          "F59E0B",
-        "Dev Done / Testing":   "A855F7",
-        "To Do":                "94A3B8",
-      };
-
-      s.addChart("bar" as never, [{
-        name: "Stories",
-        labels: statusCounts.map((d) => d.label),
-        values: statusCounts.map((d) => d.count),
-      }], {
-        x: 0.6, y: 0.85, w: 8.8, h: 4.3,
-        barDir: "bar",
-        showLegend: false,
-        showValue: true,
-        dataLabelFontSize: 13,
-        dataLabelColor: "FFFFFF",
-        chartColors: statusCounts.map((d) => barColors[d.label] ?? "94A3B8"),
-        valAxisHidden: true,
-        catAxisLabelFontSize: 13,
-      } as never);
-    }
-
-    // Chart 3: Bugs by Environment — Stacked column chart
-    if (data.bugsByEnvironment) {
-      const envLabels = ["Dev", "Staging", "Preprod", "Prod", "Unknown"];
-      const envValues = [
-        data.bugsByEnvironment.dev,
-        data.bugsByEnvironment.staging,
-        data.bugsByEnvironment.preprod,
-        data.bugsByEnvironment.prod,
-        data.bugsByEnvironment.unset,
-      ];
-      const totalBugs = envValues.reduce((a, v) => a + v, 0);
-
-      if (totalBugs > 0) {
-        const s = prs.addSlide();
-        addHeader(s, "Bugs by Environment");
-
-        // Filter out zero-count environments
-        const filtered = envLabels
-          .map((label, i) => ({ label, value: envValues[i], color: ["9CA3AF", "60A5FA", "F59E0B", "EF4444", "E5E7EB"][i] }))
-          .filter((e) => e.value > 0);
-
-        s.addChart("bar" as never, [{
-          name: "Bugs",
-          labels: filtered.map((e) => e.label),
-          values: filtered.map((e) => e.value),
-        }], {
-          x: 1.0, y: 0.85, w: 8.0, h: 4.3,
-          barDir: "col",
-          showLegend: false,
-          showValue: true,
-          dataLabelFontSize: 14,
-          dataLabelColor: "FFFFFF",
-          chartColors: filtered.map((e) => e.color),
-          valAxisHidden: true,
-          catAxisLabelFontSize: 13,
-        } as never);
+    // Helper: capture a DOM element to base64 PNG
+    const capture = async (selector: string): Promise<string | null> => {
+      const el = document.querySelector(selector) as HTMLElement | null;
+      if (!el) return null;
+      try {
+        const canvas = await html2canvasLib(el, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+          scrollX: 0,
+          scrollY: -window.scrollY,
+        });
+        return canvas.toDataURL("image/png");
+      } catch {
+        return null;
       }
+    };
+
+    // Capture the whole charts section (velocity + donut + bug env)
+    const chartsImg = await capture('[data-export-section="charts"]');
+    if (chartsImg) {
+      const s = prs.addSlide();
+      addHeader(s, "Charts Overview");
+      s.addImage({ data: chartsImg, x: 0.3, y: 0.82, w: 9.4, h: 4.5 });
     }
 
-    // Chart 4: SP Done vs Capacity — Column chart
-    {
+    // Bug env chart as its own dedicated slide (exact screenshot)
+    const bugImg = await capture('[data-export-chart="bug-env"]');
+    if (bugImg) {
       const s = prs.addSlide();
-      addHeader(s, "Sprint Progress — Story Points");
-
-      s.addChart("bar" as never, [{
-        name: "Story Points",
-        labels: ["Capacity", "Planned", "Done"],
-        values: [data.capacity, data.totalPoints, data.donePoints],
-      }], {
-        x: 1.5, y: 0.85, w: 7.0, h: 4.3,
-        barDir: "col",
-        showLegend: false,
-        showValue: true,
-        dataLabelFontSize: 14,
-        dataLabelColor: "FFFFFF",
-        chartColors: [C.primaryDk, "6B7280", "22C55E"],
-        valAxisHidden: true,
-        catAxisLabelFontSize: 14,
-      } as never);
+      addHeader(s, "Bugs by Environment");
+      s.addImage({ data: bugImg, x: 0.3, y: 0.82, w: 9.4, h: 4.5 });
     }
   }
 
@@ -428,298 +352,65 @@ async function generatePptx(data: SprintExportData, selected: Set<SectionKey>) {
   });
 }
 
-// ─── PNG generation (dynamic import — captures hidden div) ────────────────
+// ─── PNG generation — captures real page sections by data-export-section ────
 
-async function generatePng(ref: React.RefObject<HTMLDivElement | null>, name: string) {
+async function generatePng(selected: Set<SectionKey>, name: string) {
   const html2canvas = (await import("html2canvas")).default;
-  const canvas = await html2canvas(ref.current!, {
-    backgroundColor: "#ffffff",
-    scale: 2,           // 2× resolution for crisp output
-    useCORS: true,      // allow external images (avatars etc.) without taint
-    allowTaint: false,
-    logging: false,
-  });
-  const link = document.createElement("a");
-  link.download = `${name.replace(/[^a-z0-9\-_]/gi, "_")}_sprint_review.png`;
-  link.href = canvas.toDataURL("image/png");
-  link.click();
-}
 
-// ─── Hidden export preview (rendered off-screen for PNG capture) ──────────
+  const sectionOrder: SectionKey[] = ["summary", "charts", "categories", "times", "stories"];
+  const canvases: HTMLCanvasElement[] = [];
 
-function ExportPreview({ data, selected }: { data: SprintExportData; selected: Set<SectionKey> }) {
-  const totalStories = Object.values(data.storiesByStatus).reduce((a, arr) => a + arr.length, 0);
+  for (const key of sectionOrder) {
+    if (!selected.has(key)) continue;
+    const el = document.querySelector(`[data-export-section="${key}"]`) as HTMLElement | null;
+    if (!el) continue;
+    try {
+      const c = await html2canvas(el, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        scrollX: 0,
+        scrollY: -window.scrollY,
+      });
+      canvases.push(c);
+    } catch {
+      // skip sections that fail to capture
+    }
+  }
 
-  const sectionStyle: React.CSSProperties = {
-    marginBottom: 32,
-    padding: 24,
-    background: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 8,
-  };
-  const headingStyle: React.CSSProperties = {
-    fontSize: 14,
-    fontWeight: 700,
-    color: "#4f46e5",
-    marginBottom: 12,
-    paddingBottom: 8,
-    borderBottom: "2px solid #e0e7ff",
-  };
-  const tableStyle: React.CSSProperties = {
-    width: "100%",
-    borderCollapse: "collapse" as const,
-    fontSize: 12,
-  };
-  const thStyle: React.CSSProperties = {
-    background: "#f9fafb",
-    color: "#374151",
-    fontWeight: 600,
-    padding: "6px 10px",
-    border: "1px solid #e5e7eb",
-    textAlign: "left" as const,
-  };
-  const tdStyle: React.CSSProperties = {
-    padding: "5px 10px",
-    border: "1px solid #e5e7eb",
-    color: "#1f2937",
-    fontSize: 11,
-  };
+  if (canvases.length === 0) return;
 
-  return (
-    <div style={{ fontFamily: "system-ui, -apple-system, Arial, sans-serif", background: "#f8f9fa", padding: 24 }}>
-      {/* Header */}
-      <div style={{ background: "#6366f1", borderRadius: 8, padding: "20px 24px", marginBottom: 24 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: "#ffffff" }}>{data.name}</div>
-        <div style={{ fontSize: 12, color: "#e0e7ff", marginTop: 4 }}>
-          {data.teamName} · {data.startDate} → {data.endDate}
-        </div>
-      </div>
+  const gap = 16;
+  const pad = 24;
+  const totalH = pad + canvases.reduce((h, c) => h + c.height + gap, 0);
+  const maxW   = Math.max(...canvases.map((c) => c.width)) + pad * 2;
 
-      {/* Summary */}
-      {selected.has("summary") && (
-        <div style={sectionStyle}>
-          <div style={headingStyle}>Sprint Summary</div>
-          <div style={{ display: "flex", gap: 16 }}>
-            {[
-              { label: "Capacity",  value: `${data.capacity} SP`, color: "#4f46e5" },
-              { label: "Done",      value: `${data.donePoints} SP`, color: "#22c55e" },
-              { label: "Progress",  value: `${data.progress}%`, color: data.progress >= 80 ? "#22c55e" : data.progress >= 50 ? "#f59e0b" : "#ef4444" },
-              { label: "Stories",   value: String(totalStories), color: "#4f46e5" },
-            ].map((s) => (
-              <div key={s.label} style={{ flex: 1, background: "#f5f3ff", border: "1px solid #e0e7ff", borderRadius: 8, padding: "12px 8px", textAlign: "center" }}>
-                <div style={{ fontSize: 24, fontWeight: 700, color: s.color }}>{s.value}</div>
-                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 4 }}>{s.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+  const combined = document.createElement("canvas");
+  combined.width  = maxW;
+  combined.height = totalH;
+  const ctx = combined.getContext("2d")!;
+  ctx.fillStyle = "#f8fafc";
+  ctx.fillRect(0, 0, maxW, totalH);
 
-      {/* Category Breakdown */}
-      {selected.has("categories") && data.categories.length > 0 && (
-        <div style={sectionStyle}>
-          <div style={headingStyle}>Category Breakdown</div>
-          <table style={tableStyle}>
-            <thead>
-              <tr>
-                {["Category", "Stories", "SP Done", "SP Total", "Done %"].map((h) => (
-                  <th key={h} style={thStyle}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.categories.map((c) => (
-                <tr key={c.key}>
-                  <td style={{ ...tdStyle, fontWeight: 600 }}>
-                    <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: c.color, marginRight: 6 }} />
-                    {c.label}
-                  </td>
-                  <td style={{ ...tdStyle, textAlign: "center", color: "#6b7280" }}>{c.count}</td>
-                  <td style={{ ...tdStyle, textAlign: "center", fontWeight: 600, color: "#4f46e5" }}>{c.spDone}</td>
-                  <td style={{ ...tdStyle, textAlign: "center", color: "#6b7280" }}>{c.sp}</td>
-                  <td style={{ ...tdStyle, textAlign: "center", color: "#6b7280" }}>
-                    {c.sp > 0 ? `${Math.round((c.spDone / c.sp) * 100)}%` : "—"}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+  let y = pad;
+  for (const c of canvases) {
+    ctx.drawImage(c, pad, y);
+    y += c.height + gap;
+  }
 
-      {/* Transition Times */}
-      {selected.has("times") && (data.avgDevMs !== null || data.avgTestMs !== null) && (
-        <div style={sectionStyle}>
-          <div style={headingStyle}>Avg Transition Times</div>
-          <div style={{ display: "flex", gap: 16 }}>
-            {data.avgDevMs !== null && (
-              <div style={{ flex: 1, background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 8, padding: "16px 12px", textAlign: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: "#f59e0b" }}>{fmtMs(data.avgDevMs)}</div>
-                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 6 }}>In Progress → Dev Done</div>
-              </div>
-            )}
-            {data.avgTestMs !== null && (
-              <div style={{ flex: 1, background: "#faf5ff", border: "1px solid #e9d5ff", borderRadius: 8, padding: "16px 12px", textAlign: "center" }}>
-                <div style={{ fontSize: 28, fontWeight: 700, color: "#a855f7" }}>{fmtMs(data.avgTestMs)}</div>
-                <div style={{ fontSize: 11, color: "#6b7280", marginTop: 6 }}>Testing → Done</div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Charts */}
-      {selected.has("charts") && (
-        <div style={sectionStyle}>
-          <div style={headingStyle}>Charts</div>
-
-          {/* Category Distribution — stacked bar */}
-          {data.categories.length > 0 && data.totalPoints > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>
-                Category Distribution (Story Points)
-              </p>
-              <div style={{ display: "flex", height: 24, borderRadius: 4, overflow: "hidden", marginBottom: 10 }}>
-                {data.categories.map((c) => (
-                  <div
-                    key={c.key}
-                    style={{ width: `${(c.sp / data.totalPoints) * 100}%`, backgroundColor: c.color }}
-                    title={`${c.label}: ${c.sp} SP`}
-                  />
-                ))}
-              </div>
-              <div style={{ display: "flex", flexWrap: "wrap" as const, gap: "6px 20px" }}>
-                {data.categories.map((c) => (
-                  <div key={c.key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "#374151" }}>
-                    <div style={{ width: 10, height: 10, borderRadius: "50%", backgroundColor: c.color, flexShrink: 0 }} />
-                    {c.label}: <strong>{c.sp} SP</strong>&nbsp;({Math.round((c.sp / data.totalPoints) * 100)}%)
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Bugs by Environment */}
-          {data.bugsByEnvironment && (() => {
-            const ENV = [
-              { key: "prod",    label: "Prod",    color: "#ef4444" },
-              { key: "preprod", label: "Preprod", color: "#f59e0b" },
-              { key: "staging", label: "Staging", color: "#60a5fa" },
-              { key: "dev",     label: "Dev",     color: "#9ca3af" },
-              { key: "unset",   label: "Unknown", color: "#e5e7eb" },
-            ] as const;
-            const totalBugs = Object.values(data.bugsByEnvironment!).reduce((a, v) => a + v, 0);
-            if (totalBugs === 0) return null;
-            return (
-              <div style={{ marginBottom: 24 }}>
-                <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Bugs by Environment</p>
-                {ENV.map(({ key, label, color }) => {
-                  const count = data.bugsByEnvironment![key];
-                  if (count === 0) return null;
-                  const pct = Math.round((count / totalBugs) * 100);
-                  return (
-                    <div key={key} style={{ marginBottom: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6b7280", marginBottom: 3 }}>
-                        <span style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", backgroundColor: color }} />
-                          {label}
-                        </span>
-                        <span style={{ fontWeight: 600, color: "#1f2937" }}>{count} bug{count !== 1 ? "s" : ""} ({pct}%)</span>
-                      </div>
-                      <div style={{ height: 10, backgroundColor: "#f3f4f6", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{ width: `${pct}%`, height: "100%", backgroundColor: color, borderRadius: 4 }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-
-          {/* SP Progress — Capacity vs Done */}
-          <div style={{ marginBottom: 24 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Sprint Progress (Story Points)</p>
-            {[
-              { label: "Capacity", value: data.capacity, color: "#6366f1", max: Math.max(data.capacity, data.totalPoints, data.donePoints) },
-              { label: "Planned",  value: data.totalPoints, color: "#6b7280", max: Math.max(data.capacity, data.totalPoints, data.donePoints) },
-              { label: "Done",     value: data.donePoints, color: "#22c55e", max: Math.max(data.capacity, data.totalPoints, data.donePoints) },
-            ].map((row) => (
-              <div key={row.label} style={{ marginBottom: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6b7280", marginBottom: 3 }}>
-                  <span>{row.label}</span>
-                  <span style={{ fontWeight: 600, color: "#1f2937" }}>{row.value} SP</span>
-                </div>
-                <div style={{ height: 10, backgroundColor: "#f3f4f6", borderRadius: 4, overflow: "hidden" }}>
-                  <div style={{ width: `${row.max > 0 ? (row.value / row.max) * 100 : 0}%`, height: "100%", backgroundColor: row.color, borderRadius: 4 }} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Story Status Distribution */}
-          {(() => {
-            const totalStories = Object.values(data.storiesByStatus).reduce((a, arr) => a + arr.length, 0);
-            if (totalStories === 0) return null;
-            const statusColors: Record<string, string> = {
-              done: "#22c55e", in_progress: "#f59e0b", dev_done: "#a855f7", todo: "#94a3b8",
-            };
-            return (
-              <div>
-                <p style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Story Status Distribution</p>
-                {STATUS_ORDER.map((k) => {
-                  const count = data.storiesByStatus[k].length;
-                  if (count === 0) return null;
-                  const pct = Math.round((count / totalStories) * 100);
-                  return (
-                    <div key={k} style={{ marginBottom: 8 }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#6b7280", marginBottom: 3 }}>
-                        <span>{STATUS_LABELS[k]}</span>
-                        <span style={{ fontWeight: 600, color: "#1f2937" }}>{count} stories ({pct}%)</span>
-                      </div>
-                      <div style={{ height: 10, backgroundColor: "#f3f4f6", borderRadius: 4, overflow: "hidden" }}>
-                        <div style={{ width: `${pct}%`, height: "100%", backgroundColor: statusColors[k], borderRadius: 4 }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })()}
-        </div>
-      )}
-
-      {/* Stories by Status */}
-      {selected.has("stories") && STATUS_ORDER.map((statusKey) => {
-        const stories = data.storiesByStatus[statusKey];
-        if (stories.length === 0) return null;
-        return (
-          <div key={statusKey} style={sectionStyle}>
-            <div style={headingStyle}>Stories — {STATUS_LABELS[statusKey]}</div>
-            <table style={tableStyle}>
-              <thead>
-                <tr>
-                  {["#", "Title", "Category", "SP", "Assignee"].map((h) => (
-                    <th key={h} style={thStyle}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {stories.map((story, idx) => (
-                  <tr key={idx} style={{ background: idx % 2 === 0 ? "#ffffff" : "#f9fafb" }}>
-                    <td style={{ ...tdStyle, color: "#6b7280", textAlign: "center", width: 30 }}>{idx + 1}</td>
-                    <td style={tdStyle}>{story.title}</td>
-                    <td style={{ ...tdStyle, color: "#6b7280" }}>{story.categoryLabel}</td>
-                    <td style={{ ...tdStyle, fontWeight: 600, color: "#4f46e5", textAlign: "center", width: 40 }}>{story.storyPoints}</td>
-                    <td style={{ ...tdStyle, color: "#6b7280" }}>{story.assigneeName ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-      })}
-    </div>
-  );
+  combined.toBlob((blob) => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement("a");
+    a.download = `${name.replace(/[^a-z0-9\-_]/gi, "_")}_sprint_review.png`;
+    a.href = url;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, "image/png");
 }
 
 // ─── Main component ───────────────────────────────────────────────────────
@@ -731,7 +422,6 @@ export function SprintExportModal({ data }: { data: SprintExportData }) {
   );
   const [format, setFormat] = useState<"pptx" | "png">("pptx");
   const [loading, setLoading] = useState(false);
-  const exportRef = useRef<HTMLDivElement>(null);
 
   const toggleSection = useCallback((key: SectionKey) => {
     setSelected((prev) => {
@@ -749,8 +439,7 @@ export function SprintExportModal({ data }: { data: SprintExportData }) {
       if (format === "pptx") {
         await generatePptx(data, selected);
       } else {
-        if (!exportRef.current) return;
-        await generatePng(exportRef, data.name);
+        await generatePng(selected, data.name);
       }
       setOpen(false);
     } catch (err) {
@@ -855,20 +544,6 @@ export function SprintExportModal({ data }: { data: SprintExportData }) {
         </div>
       )}
 
-      {/* Hidden div for PNG capture — always in DOM, positioned off-screen */}
-      <div
-        ref={exportRef}
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          top: "-99999px",
-          left: "-99999px",
-          width: "1200px",
-          pointerEvents: "none",
-        }}
-      >
-        <ExportPreview data={data} selected={selected} />
-      </div>
     </>
   );
 }

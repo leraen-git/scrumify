@@ -75,7 +75,7 @@ export function BugEnvironmentChart({ sprints }: Props) {
   const hasAnyBug = data.some((d) => d.dev + d.staging + d.preprod + d.prod + d.unset > 0);
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 w-full">
+    <div data-export-chart="bug-env" className="bg-white rounded-xl border border-gray-200 p-5 w-full">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-gray-700">Bugs by Environment</h3>
         <p className="text-xs text-gray-400 mt-0.5">Number of bug tickets per environment across sprints</p>

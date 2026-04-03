@@ -374,7 +374,7 @@ export default async function TeamDashboard({
       )}
 
       {/* Project Overview */}
-      <div className="mb-6">
+      <div data-export-section="summary" className="mb-6">
         <h2 className="text-base font-semibold text-gray-900 mb-4">Project Overview</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <Card>
@@ -431,7 +431,7 @@ export default async function TeamDashboard({
 
       {/* Sprint Overview + Category Breakdown */}
       {chartData.length > 0 && (
-        <div className="flex flex-col lg:flex-row gap-6 items-start mb-8">
+        <div data-export-section="charts" className="flex flex-col lg:flex-row gap-6 items-start mb-8">
           <VelocityChart data={chartData} avgVelocityPerDay={avgVelocityPerDay} />
           {(() => {
             const donutSprints = chartSprints.filter((s) => s.userStories.length > 0);

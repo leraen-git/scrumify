@@ -382,7 +382,7 @@ export default async function SprintPage({
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+      <div data-export-section="summary" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
         <Card>
           <CardContent className="pt-5 pb-4">
             <div className="text-2xl font-bold text-indigo-600">{sprint.capacity}</div>
@@ -455,7 +455,7 @@ export default async function SprintPage({
       })()}
 
       {/* Category breakdown + Transition times */}
-      <div className="flex flex-col lg:flex-row gap-4 mb-6">
+      <div data-export-section="charts" className="flex flex-col lg:flex-row gap-4 mb-6">
         {(() => {
           const alloc = sprint.team.categoryAllocations ?? {};
           const CATEGORIES = [
@@ -568,7 +568,7 @@ export default async function SprintPage({
       })()}
 
       {/* Kanban columns */}
-      <div className="flex flex-col gap-3 mb-6">
+      <div data-export-section="stories" className="flex flex-col gap-3 mb-6">
         {(["todo", "in_progress", "dev_done", "done"] as const).map((status) => {
           const cfg = storyStatusConfig[status];
           const stories = groupedStories[status];
