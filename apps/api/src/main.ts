@@ -8,7 +8,8 @@ import { AppModule } from './app.module';
 import { PrismaClient } from '../generated/prisma/client';
 
 async function runStartupMigrations() {
-  const prisma = new PrismaClient({});
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prisma = new (PrismaClient as any)();
   try {
     await prisma.$executeRawUnsafe('ALTER TABLE "UserStory" ADD COLUMN IF NOT EXISTS "environment" TEXT');
     console.log('Startup migrations applied.');
