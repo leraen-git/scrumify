@@ -1,7 +1,9 @@
 import { CategoryDonutChart } from "@/components/category-donut-chart";
+import { KanbanCategoryFilter } from "@/components/kanban-category-filter";
 import { StoryEnvironmentSelect } from "@/components/story-environment-select";
 import { ForecastChart, ForecastSummary, FutureSprintPoint, PastSprintPoint } from "@/components/forecast-chart";
 import { MoveSprintSelect } from "@/components/move-sprint-select";
+import { SprintExportModal, type SprintExportData } from "@/components/sprint-export-modal";
 import { VelocityChart } from "@/components/velocity-chart";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -145,10 +147,10 @@ export default async function TeamDashboard({
   searchParams,
 }: {
   params: Promise<{ teamId: string }>;
-  searchParams: Promise<{ editStory?: string }>;
+  searchParams: Promise<{ editStory?: string; categories?: string }>;
 }) {
   const { teamId } = await params;
-  const { editStory } = await searchParams;
+  const { editStory, categories } = await searchParams;
 
   const cookieStore = await cookies();
   const ctx = cookieStore.get("argo_ctx")?.value ?? "";
@@ -254,8 +256,9 @@ export default async function TeamDashboard({
           completedSprints.reduce((a, s) => {
             const done = s.userStories.filter((u) => u.status === "done").reduce((b, u) => b + u.storyPoints, 0);
             const total = s.userStories.reduce((b, u) => b + u.storyPoints, 0);
-            const denominator = s.capacity > 0 ? s.capacity : total;
-            return a + (denominator > 0 ? Math.min(1, done / denominator) : 0);
+            // Prefer plannedPoints (locked at sprint start), then capacity, then current total
+            const denominator = s.plannedPoints > 0 ? s.plannedPoints : s.capacity > 0 ? s.capacity : total;
+            return a + (denominator > 0 ? done / denominator : 0);
           }, 0) / completedSprints.length * 100
         )
       : null;
@@ -285,10 +288,79 @@ export default async function TeamDashboard({
     };
   });
 
+  // ── Category filter (for active sprint kanban) ────────────────────────────
+  const activeCategories = new Set((categories ?? "").split(",").filter(Boolean));
+
+  // ── Export data for active sprint (passed to SprintExportModal) ───────────
+  const CATEGORY_LABELS: Record<string, string> = {
+    user_story: "User Story", bug: "Bug", mco: "MCO", best_effort: "Best-effort", tech_lead: "Tech Lead",
+  };
+  const EXPORT_CATEGORIES_CONFIG = [
+    { key: "user_story",  label: "User Story",  color: (team.categoryAllocations["user_story_color"]  as string) ?? "#6366f1" },
+    { key: "bug",         label: "Bug",          color: (team.categoryAllocations["bug_color"]          as string) ?? "#ef4444" },
+    { key: "mco",         label: "MCO",          color: (team.categoryAllocations["mco_color"]          as string) ?? "#f59e0b" },
+    { key: "best_effort", label: "Best-effort",  color: (team.categoryAllocations["best_effort_color"]  as string) ?? "#22c55e" },
+    { key: "tech_lead",   label: "Tech Lead",    color: (team.categoryAllocations["tech_lead_color"]    as string) ?? "#a855f7" },
+  ];
+
+  const activeSprintExportData: SprintExportData | null = activeSprint ? (() => {
+    const devTimes: number[] = [];
+    const testTimes: number[] = [];
+    for (const story of activeSprint.userStories) {
+      const { devMs, testMs } = getCompletedTimings(story.statusHistory);
+      if (devMs !== null && devMs > 0) devTimes.push(devMs);
+      if (testMs !== null && testMs > 0) testTimes.push(testMs);
+    }
+    const toExportStories = (list: typeof activeSprint.userStories) =>
+      list.map((s) => ({
+        title:         s.title,
+        category:      s.category,
+        categoryLabel: CATEGORY_LABELS[s.category] ?? s.category,
+        storyPoints:   s.storyPoints,
+        assigneeName:  team.developers.find((d) => d.id === s.assigneeId)?.name ?? null,
+      }));
+    const spDone = activeSprint.userStories.filter((s) => s.status === "done").reduce((a, s) => a + s.storyPoints, 0);
+    const spTotal = activeSprint.userStories.reduce((a, s) => a + s.storyPoints, 0);
+    const denom = activeSprint.capacity > 0 ? activeSprint.capacity : spTotal;
+    return {
+      name:        activeSprint.name,
+      teamName:    team.developers.length > 0 ? `${team.developers.length} dev${team.developers.length > 1 ? "s" : ""}` : "",
+      startDate:   formatDate(activeSprint.startDate),
+      endDate:     formatDate(activeSprint.endDate),
+      capacity:    activeSprint.capacity,
+      donePoints:  spDone,
+      totalPoints: spTotal,
+      progress:    denom > 0 ? Math.round((spDone / denom) * 100) : 0,
+      categories: EXPORT_CATEGORIES_CONFIG
+        .map((c) => {
+          const stories = activeSprint.userStories.filter((s) => s.category === c.key);
+          const sp     = stories.reduce((a, s) => a + s.storyPoints, 0);
+          const spDoneC = stories.filter((s) => s.status === "done").reduce((a, s) => a + s.storyPoints, 0);
+          return { ...c, count: stories.length, sp, spDone: spDoneC };
+        })
+        .filter((c) => c.sp > 0),
+      avgDevMs:  devTimes.length  > 0 ? devTimes.reduce((a, v)  => a + v, 0) / devTimes.length  : null,
+      avgTestMs: testTimes.length > 0 ? testTimes.reduce((a, v) => a + v, 0) / testTimes.length : null,
+      storiesByStatus: {
+        todo:        toExportStories(activeSprint.userStories.filter((s) => s.status === "todo")),
+        in_progress: toExportStories(activeSprint.userStories.filter((s) => s.status === "in_progress")),
+        dev_done:    toExportStories(activeSprint.userStories.filter((s) => s.status === "dev_done")),
+        done:        toExportStories(activeSprint.userStories.filter((s) => s.status === "done")),
+      },
+    };
+  })() : null;
+
   const dashUrl = `/teams/${teamId}`;
 
   return (
     <div>
+      {/* Export button */}
+      {activeSprintExportData && (
+        <div className="flex justify-end mb-3">
+          <SprintExportModal data={activeSprintExportData} />
+        </div>
+      )}
+
       {/* Project Overview */}
       <div className="mb-6">
         <h2 className="text-base font-semibold text-gray-900 mb-4">Project Overview</h2>
@@ -385,11 +457,14 @@ export default async function TeamDashboard({
           return h.some((e) => e.toSprintId === activeSprint.id);
         }).length;
 
+        const filteredStories = activeCategories.size > 0
+          ? stories.filter((s) => activeCategories.has(s.category))
+          : stories;
         const groupedStories = {
-          todo: stories.filter((s) => s.status === "todo"),
-          in_progress: stories.filter((s) => s.status === "in_progress"),
-          dev_done: stories.filter((s) => s.status === "dev_done"),
-          done: stories.filter((s) => s.status === "done"),
+          todo:        filteredStories.filter((s) => s.status === "todo"),
+          in_progress: filteredStories.filter((s) => s.status === "in_progress"),
+          dev_done:    filteredStories.filter((s) => s.status === "dev_done"),
+          done:        filteredStories.filter((s) => s.status === "done"),
         };
 
         return (
@@ -492,6 +567,26 @@ export default async function TeamDashboard({
                       />
                     </div>
                   </div>
+                </div>
+              );
+            })()}
+
+            {/* Category filter pills */}
+            {(() => {
+              const alloc = team.categoryAllocations ?? {};
+              const pillCategories = [
+                { key: "user_story",  label: "User Story",  color: (alloc["user_story_color"]  as string) ?? "#6366f1" },
+                { key: "bug",         label: "Bug",          color: (alloc["bug_color"]          as string) ?? "#ef4444" },
+                { key: "mco",         label: "MCO",          color: (alloc["mco_color"]          as string) ?? "#f59e0b" },
+                { key: "best_effort", label: "Best-effort",  color: (alloc["best_effort_color"]  as string) ?? "#22c55e" },
+                { key: "tech_lead",   label: "Tech Lead",    color: (alloc["tech_lead_color"]    as string) ?? "#a855f7" },
+              ]
+                .map((c) => ({ ...c, count: stories.filter((s) => s.category === c.key).length }))
+                .filter((c) => c.count > 0);
+              if (pillCategories.length <= 1) return null;
+              return (
+                <div className="mb-3">
+                  <KanbanCategoryFilter categories={pillCategories} />
                 </div>
               );
             })()}
