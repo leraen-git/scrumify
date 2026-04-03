@@ -107,6 +107,7 @@ model UserStory {
   spChanges     String   @default("[]")
   statusHistory String   @default("[]")
   sprintHistory String   @default("[]")
+  environment   String?
 }
 
 model SprintRetrospective {
