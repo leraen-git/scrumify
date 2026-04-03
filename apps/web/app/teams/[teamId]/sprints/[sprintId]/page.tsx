@@ -1,5 +1,6 @@
 import { KanbanCategoryFilter } from "@/components/kanban-category-filter";
 import { MoveSprintSelect } from "@/components/move-sprint-select";
+import { SprintExportModal, type SprintExportData } from "@/components/sprint-export-modal";
 import { SprintDatePicker } from "@/components/sprint-date-picker";
 import { SprintStatusSelect } from "@/components/sprint-status-select";
 import { StoriesImporter } from "@/components/stories-importer";
@@ -249,6 +250,60 @@ export default async function SprintPage({
 
   const boardUrl = `/teams/${teamId}/sprints/${sprintId}`;
 
+  // ── Export data (plain serialisable object — passed to client component) ──
+  const alloc = sprint.team.categoryAllocations ?? {};
+  const EXPORT_CATEGORIES = [
+    { key: "user_story",  label: "User Story",  color: (alloc["user_story_color"]  as string) ?? "#6366f1" },
+    { key: "bug",         label: "Bug",          color: (alloc["bug_color"]          as string) ?? "#ef4444" },
+    { key: "mco",         label: "MCO",          color: (alloc["mco_color"]          as string) ?? "#f59e0b" },
+    { key: "best_effort", label: "Best-effort",  color: (alloc["best_effort_color"]  as string) ?? "#22c55e" },
+    { key: "tech_lead",   label: "Tech Lead",    color: (alloc["tech_lead_color"]    as string) ?? "#a855f7" },
+  ];
+
+  const devTimesAll: number[] = [];
+  const testTimesAll: number[] = [];
+  for (const story of sprint.userStories) {
+    const { devMs, testMs } = getStatusTimings(story.statusHistory);
+    if (devMs !== null && devMs > 0) devTimesAll.push(devMs);
+    if (testMs !== null && testMs > 0) testTimesAll.push(testMs);
+  }
+
+  const toExportStories = (list: typeof sprint.userStories) =>
+    list.map((s) => ({
+      title:         s.title,
+      category:      s.category,
+      categoryLabel: CATEGORY_LABELS[s.category] ?? s.category,
+      storyPoints:   s.storyPoints,
+      assigneeName:  sprint.team.developers.find((d) => d.id === s.assigneeId)?.name ?? null,
+    }));
+
+  const exportData: SprintExportData = {
+    name:        sprint.name,
+    teamName:    sprint.team.name,
+    startDate:   formatDate(sprint.startDate),
+    endDate:     formatDate(sprint.endDate),
+    capacity:    sprint.capacity,
+    donePoints,
+    totalPoints,
+    progress,
+    categories: EXPORT_CATEGORIES
+      .map((c) => {
+        const stories = sprint.userStories.filter((s) => s.category === c.key);
+        const sp     = stories.reduce((a, s) => a + s.storyPoints, 0);
+        const spDone = stories.filter((s) => s.status === "done").reduce((a, s) => a + s.storyPoints, 0);
+        return { ...c, count: stories.length, sp, spDone };
+      })
+      .filter((c) => c.sp > 0),
+    avgDevMs:  devTimesAll.length  > 0 ? devTimesAll.reduce((a, v)  => a + v, 0) / devTimesAll.length  : null,
+    avgTestMs: testTimesAll.length > 0 ? testTimesAll.reduce((a, v) => a + v, 0) / testTimesAll.length : null,
+    storiesByStatus: {
+      todo:        toExportStories(sprint.userStories.filter((s) => s.status === "todo")),
+      in_progress: toExportStories(sprint.userStories.filter((s) => s.status === "in_progress")),
+      dev_done:    toExportStories(sprint.userStories.filter((s) => s.status === "dev_done")),
+      done:        toExportStories(sprint.userStories.filter((s) => s.status === "done")),
+    },
+  };
+
   return (
     <div>
       {/* Header */}
@@ -301,13 +356,16 @@ export default async function SprintPage({
                 {formatDate(sprint.startDate)} → {formatDate(sprint.endDate)} · {sprintWeeks(sprint.startDate, sprint.endDate)}w
               </p>
             </div>
-            {isAdmin && (
-              <SprintStatusSelect
-                currentStatus={sprint.status}
-                options={sprintStatusOptions}
-                action={updateStatusAction}
-              />
-            )}
+            <div className="flex items-center gap-2">
+              <SprintExportModal data={exportData} />
+              {isAdmin && (
+                <SprintStatusSelect
+                  currentStatus={sprint.status}
+                  options={sprintStatusOptions}
+                  action={updateStatusAction}
+                />
+              )}
+            </div>
           </div>
         )}
       </div>

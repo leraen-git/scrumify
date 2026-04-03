@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Empty turbopack config: tells Next.js 16 we are Turbopack-aware.
+  // pptxgenjs / html2canvas are dynamically imported inside browser event
+  // handlers only, so no Node built-in polyfills are needed.
+  turbopack: {},
 };
 
 export default nextConfig;
