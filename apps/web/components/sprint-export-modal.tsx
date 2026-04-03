@@ -435,16 +435,20 @@ export function SprintExportModal({ data }: { data: SprintExportData }) {
   const handleExport = useCallback(async () => {
     if (selected.size === 0) return;
     setLoading(true);
+    // Close the modal first — the backdrop (bg-black/40) would otherwise
+    // occlude page elements and break html2canvas DOM capture.
+    setOpen(false);
+    // Wait two animation frames so React flushes the state update and the
+    // browser has fully repainted without the overlay before we capture.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => { requestAnimationFrame(() => resolve()); }));
     try {
       if (format === "pptx") {
         await generatePptx(data, selected);
       } else {
         await generatePng(selected, data.name);
       }
-      setOpen(false);
     } catch (err) {
       console.error("[SprintExport] generation failed:", err);
-      // Keep modal open so user can retry
     } finally {
       setLoading(false);
     }

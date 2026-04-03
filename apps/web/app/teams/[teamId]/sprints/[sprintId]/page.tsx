@@ -1,4 +1,5 @@
 import { KanbanCategoryFilter } from "@/components/kanban-category-filter";
+import { SprintCategoryChart } from "@/components/sprint-category-chart";
 import { MoveSprintSelect } from "@/components/move-sprint-select";
 import { SprintExportModal, type SprintExportData } from "@/components/sprint-export-modal";
 import { SprintDatePicker } from "@/components/sprint-date-picker";
@@ -454,8 +455,32 @@ export default async function SprintPage({
         );
       })()}
 
+      {/* Charts — SP by category (captured for export) */}
+      {(() => {
+        const alloc = sprint.team.categoryAllocations ?? {};
+        const CATEGORIES = [
+          { key: "user_story", label: "User Story", color: (alloc["user_story_color"] as unknown as string) ?? "#6366f1" },
+          { key: "bug",        label: "Bug",         color: (alloc["bug_color"]        as unknown as string) ?? "#ef4444" },
+          { key: "mco",        label: "MCO",         color: (alloc["mco_color"]        as unknown as string) ?? "#f59e0b" },
+          { key: "best_effort",label: "Best-effort", color: (alloc["best_effort_color"] as unknown as string) ?? "#22c55e" },
+          { key: "tech_lead",  label: "Tech Lead",   color: (alloc["tech_lead_color"]  as unknown as string) ?? "#a855f7" },
+        ];
+        const chartData = CATEGORIES.map((c) => {
+          const stories = sprint.userStories.filter((s) => s.category === c.key);
+          const sp = stories.reduce((a, s) => a + s.storyPoints, 0);
+          const spDone = stories.filter((s) => s.status === "done").reduce((a, s) => a + s.storyPoints, 0);
+          return { ...c, sp, spDone };
+        }).filter((c) => c.sp > 0);
+        if (chartData.length === 0) return null;
+        return (
+          <div data-export-section="charts" className="mb-6">
+            <SprintCategoryChart categories={chartData} />
+          </div>
+        );
+      })()}
+
       {/* Category breakdown + Transition times */}
-      <div data-export-section="charts" className="flex flex-col lg:flex-row gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row gap-4 mb-6">
         {(() => {
           const alloc = sprint.team.categoryAllocations ?? {};
           const CATEGORIES = [
@@ -472,7 +497,7 @@ export default async function SprintPage({
             return { ...c, sp, spDone, count: stories.length };
           }).filter((c) => c.sp > 0);
           return (
-            <div className="w-full lg:w-1/2 bg-white rounded-lg border border-gray-200 p-4">
+            <div data-export-section="categories" className="w-full lg:w-1/2 bg-white rounded-lg border border-gray-200 p-4">
               <p className="text-sm font-medium text-gray-700 mb-3">Category Breakdown</p>
               {rows.length === 0 ? (
                 <p className="text-xs text-gray-400 italic">No stories with categories yet.</p>
@@ -514,7 +539,7 @@ export default async function SprintPage({
           const avgDev = devTimes.length > 0 ? devTimes.reduce((a, v) => a + v, 0) / devTimes.length : null;
           const avgTest = testTimes.length > 0 ? testTimes.reduce((a, v) => a + v, 0) / testTimes.length : null;
           return (
-            <div className="flex-1 bg-white rounded-lg border border-gray-200 p-4">
+            <div data-export-section="times" className="flex-1 bg-white rounded-lg border border-gray-200 p-4">
               <p className="text-sm font-medium text-gray-700 mb-3">Avg Transition Times</p>
               {avgDev === null && avgTest === null ? (
                 <p className="text-xs text-gray-400 italic">No transitions recorded yet.</p>
