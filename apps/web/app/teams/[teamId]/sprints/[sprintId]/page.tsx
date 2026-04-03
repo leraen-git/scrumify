@@ -3,6 +3,7 @@ import { SprintDatePicker } from "@/components/sprint-date-picker";
 import { SprintStatusSelect } from "@/components/sprint-status-select";
 import { StoriesImporter } from "@/components/stories-importer";
 import { StoryCategorySelect } from "@/components/story-category-select";
+import { StoryEnvironmentSelect } from "@/components/story-environment-select";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -584,20 +585,7 @@ export default async function SprintPage({
                       {/* Environment — bugs only */}
                       {story.category === "bug" && (
                         isAdmin ? (
-                          <form action={updateEnvironmentAction} className="shrink-0">
-                            <select
-                              name="environment"
-                              defaultValue={story.environment ?? ""}
-                              onChange={(e) => e.currentTarget.form?.requestSubmit()}
-                              className="h-6 rounded border border-gray-200 bg-white px-1 text-[10px] text-gray-600 focus:outline-none focus:ring-1 focus:ring-indigo-400"
-                            >
-                              <option value="">env?</option>
-                              <option value="dev">Dev</option>
-                              <option value="staging">Staging</option>
-                              <option value="preprod">Preprod</option>
-                              <option value="prod">Prod</option>
-                            </select>
-                          </form>
+                          <StoryEnvironmentSelect action={updateEnvironmentAction} defaultValue={story.environment ?? null} />
                         ) : story.environment ? (
                           <span className={`text-[10px] font-medium rounded px-1.5 py-0.5 shrink-0 border ${
                             story.environment === "prod"    ? "bg-red-50 text-red-600 border-red-200" :
