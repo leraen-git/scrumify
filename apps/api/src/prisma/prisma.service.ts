@@ -9,5 +9,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
   }
   async onModuleInit() {
     await this.$connect();
+    try {
+      await this.$executeRawUnsafe('ALTER TABLE "UserStory" ADD COLUMN IF NOT EXISTS "environment" TEXT');
+    } catch {
+      // column already exists
+    }
   }
 }
