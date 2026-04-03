@@ -1,3 +1,4 @@
+import { KanbanCategoryFilter } from "@/components/kanban-category-filter";
 import { MoveSprintSelect } from "@/components/move-sprint-select";
 import { SprintDatePicker } from "@/components/sprint-date-picker";
 import { SprintStatusSelect } from "@/components/sprint-status-select";
@@ -193,10 +194,10 @@ export default async function SprintPage({
   searchParams,
 }: {
   params: Promise<{ teamId: string; sprintId: string }>;
-  searchParams: Promise<{ editSprint?: string; editStory?: string }>;
+  searchParams: Promise<{ editSprint?: string; editStory?: string; categories?: string }>;
 }) {
   const { teamId, sprintId } = await params;
-  const { editSprint, editStory } = await searchParams;
+  const { editSprint, editStory, categories } = await searchParams;
 
   const cookieStore = await cookies();
   const ctx = cookieStore.get("argo_ctx")?.value ?? "";
@@ -234,11 +235,16 @@ export default async function SprintPage({
   const updateStatusAction = updateSprintStatus.bind(null, sprintId, teamId);
   const addStoryAction = addStory.bind(null, sprintId, teamId);
 
+  const activeCategories = new Set((categories ?? "").split(",").filter(Boolean));
+  const filteredStories = activeCategories.size > 0
+    ? sprint.userStories.filter((s) => activeCategories.has(s.category))
+    : sprint.userStories;
+
   const groupedStories = {
-    todo: sprint.userStories.filter((s) => s.status === "todo"),
-    in_progress: sprint.userStories.filter((s) => s.status === "in_progress"),
-    dev_done: sprint.userStories.filter((s) => s.status === "dev_done"),
-    done: sprint.userStories.filter((s) => s.status === "done"),
+    todo:        filteredStories.filter((s) => s.status === "todo"),
+    in_progress: filteredStories.filter((s) => s.status === "in_progress"),
+    dev_done:    filteredStories.filter((s) => s.status === "dev_done"),
+    done:        filteredStories.filter((s) => s.status === "done"),
   };
 
   const boardUrl = `/teams/${teamId}/sprints/${sprintId}`;
@@ -403,14 +409,25 @@ export default async function SprintPage({
                 <p className="text-xs text-gray-400 italic">No stories with categories yet.</p>
               ) : (
                 <div className="space-y-2">
-                  {rows.map((c) => (
-                    <div key={c.key} className="flex items-center gap-3 text-sm">
-                      <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                      <span className="w-28 font-medium text-gray-700">{c.label}</span>
-                      <span className="text-xs text-gray-400">{c.count} stor{c.count !== 1 ? "ies" : "y"}</span>
-                      <span className="ml-auto font-semibold text-indigo-600">{c.spDone} / {c.sp} SP</span>
-                    </div>
-                  ))}
+                  {rows.map((c) => {
+                    const isActive = activeCategories.has(c.key);
+                    const nextSet = new Set(activeCategories);
+                    if (isActive) nextSet.delete(c.key); else nextSet.add(c.key);
+                    const nextParam = nextSet.size > 0 ? `?categories=${[...nextSet].join(",")}` : `?`;
+                    return (
+                      <Link
+                        key={c.key}
+                        href={nextParam}
+                        scroll={false}
+                        className={`flex items-center gap-3 text-sm rounded-md px-2 py-1 -mx-2 transition-colors ${isActive ? "bg-gray-100" : "hover:bg-gray-50"}`}
+                      >
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                        <span className="w-28 font-medium text-gray-700">{c.label}</span>
+                        <span className="text-xs text-gray-400">{c.count} stor{c.count !== 1 ? "ies" : "y"}</span>
+                        <span className="ml-auto font-semibold text-indigo-600">{c.spDone} / {c.sp} SP</span>
+                      </Link>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -456,6 +473,30 @@ export default async function SprintPage({
           );
         })()}
       </div>
+
+      {/* Category filter pills */}
+      {(() => {
+        const alloc = sprint.team.categoryAllocations ?? {};
+        const CATEGORIES = [
+          { key: "user_story",  label: "User Story",  color: (alloc["user_story_color"]  as unknown as string) ?? "#6366f1" },
+          { key: "bug",         label: "Bug",          color: (alloc["bug_color"]          as unknown as string) ?? "#ef4444" },
+          { key: "mco",         label: "MCO",          color: (alloc["mco_color"]          as unknown as string) ?? "#f59e0b" },
+          { key: "best_effort", label: "Best-effort",  color: (alloc["best_effort_color"]  as unknown as string) ?? "#22c55e" },
+          { key: "tech_lead",   label: "Tech Lead",    color: (alloc["tech_lead_color"]    as unknown as string) ?? "#a855f7" },
+        ];
+        const pillCategories = CATEGORIES
+          .map((c) => ({
+            ...c,
+            count: sprint.userStories.filter((s) => s.category === c.key).length,
+          }))
+          .filter((c) => c.count > 0);
+        if (pillCategories.length <= 1) return null;
+        return (
+          <div className="mb-4">
+            <KanbanCategoryFilter categories={pillCategories} />
+          </div>
+        );
+      })()}
 
       {/* Kanban columns */}
       <div className="flex flex-col gap-3 mb-6">
